@@ -2,7 +2,7 @@
 
 Real-time WW1 trench sector commander — mass troops, bracket no man's land with artillery, and assault sector by sector until the enemy line is yours.
 
-**v0.2** — audio, sprites, mobile-ready architecture. **v0.1** was the greybox prototype.
+**v0.5** — AI difficulty (Defensive / Balanced / Aggressive). **v0.3** added main menu, casualty tracking, and charts.
 
 See [ROADMAP.md](./ROADMAP.md) and [docs/ANDROID.md](./docs/ANDROID.md).
 

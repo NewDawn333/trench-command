@@ -1,10 +1,10 @@
 # Trench Command — Roadmap
 
-**Current:** v0.2 — audio, canvas sprites, mobile-ready architecture. v0.1 was greybox prototype.
+**Current:** v0.5 — AI difficulty profiles. v0.3 added main menu, casualty tracking, and charts.
 
 ---
 
-## v0.2 — Feel & feedback ✅ (in progress / shipped baseline)
+## v0.2 — Feel & feedback ✅
 
 Goal: the game *sounds* and *reads* like a battle, not a diagram.
 
@@ -16,7 +16,7 @@ Goal: the game *sounds* and *reads* like a battle, not a diagram.
 - [x] Sector captured — cheers / horn
 - [x] Sector lost — alarm
 - [x] Artillery: aim tone + impact burst
-- [x] Volume sliders + mute toggles (HUD)
+- [x] Volume sliders + mute toggles (main menu settings)
 - [ ] Replace procedural SFX with licensed asset files
 - [ ] UI tap sounds
 
@@ -32,23 +32,23 @@ Goal: the game *sounds* and *reads* like a battle, not a diagram.
 ### UX / mobile
 - [x] Safe-area / viewport-fit for phones
 - [x] `docs/ANDROID.md` — Capacitor plan
-- [ ] Brief tutorial overlay (first launch)
+- [ ] Brief tutorial overlay (deferred)
 - [ ] Assault / artillery status toasts on map
 
 ---
 
-## v0.3 — Main menu & game flow
+## v0.3 — Main menu & game flow ✅
 
-- [ ] Landing page: title, **New Game**, **Continue** (later), settings, credits
-- [ ] Settings: music/SFX volume, control hints toggle
-- [ ] End-of-mission screen (win/loss stats: sectors taken, casualties, shells fired)
-- [ ] Save best times / scores locally (`localStorage`)
+- [x] Landing page: title, **New Game**, **Continue** (disabled — v0.4), settings, credits
+- [x] Settings: music/SFX volume, control hints toggle
+- [x] End-of-mission screen (win/loss stats: time, sectors, casualties, shells, assaults)
+- [x] Save best victory time + win/loss counts (`localStorage`)
+- [x] In-game **Menu** button returns to landing page
+- [ ] Continue / save mid-mission (v0.4)
 
 ---
 
 ## v0.4 — Procedural levels
-
-Each playthrough differs in layout and obstacles; same core rules.
 
 ### Level generation
 - [ ] Seed-based generator (display seed, optional share code)
@@ -66,14 +66,14 @@ Each playthrough differs in layout and obstacles; same core rules.
 
 ---
 
-## v0.5 — AI personalities & difficulty
+## v0.5 — AI personalities & difficulty ✅
 
-- [ ] **Difficulty select** on New Game: Defensive / Balanced / Aggressive
-- [ ] Aggressive: earlier assaults, more arty, lateral spread in your trench sooner
-- [ ] Defensive: masses longer, fewer cross-sector assaults, preserves MGs
-- [ ] Per-level AI intensity ramp (+5–10% aggression per campaign level)
-- [ ] AI artillery targeting (weak sectors, massing staging)
-- [ ] AI reinforcement timing tied to difficulty
+- [x] **Difficulty select** on main menu: Defensive / Balanced / Aggressive
+- [x] Aggressive: earlier assaults, more arty, faster lateral spread in your trench
+- [x] Defensive: longer massing, fewer counter-assaults, avoids pillbox sectors
+- [x] Per-level AI intensity ramp (+8% aggression per campaign level — hook for v0.4)
+- [x] AI artillery targets weak sectors / massing staging
+- [x] AI reinforcement timing tied to difficulty
 
 ---
 

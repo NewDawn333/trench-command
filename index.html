@@ -9,41 +9,98 @@
   </head>
   <body>
     <div id="app">
-      <header id="hud">
-        <div class="hud-left">
-          <h1>Trench Command</h1>
-          <span id="status">Staging troops — mass for the assault</span>
-        </div>
-        <div class="hud-center">
-          <button id="btn-pause" class="btn">Pause</button>
-        </div>
-        <div class="hud-right">
-          <div id="replacements">Call up troops via sector buttons below the map</div>
-          <div id="artillery-status">Artillery: —</div>
-          <div id="audio-controls" class="audio-controls">
-            <label><input type="checkbox" id="music-mute" /> Mute music</label>
-            <input type="range" id="music-vol" min="0" max="100" value="35" aria-label="Music volume" />
-            <label><input type="checkbox" id="sfx-mute" /> Mute SFX</label>
-            <input type="range" id="sfx-vol" min="0" max="100" value="70" aria-label="SFX volume" />
+      <section id="screen-menu" class="screen screen-menu">
+        <div class="menu-card">
+          <h1 class="menu-title">Trench Command</h1>
+          <p class="menu-tagline">Real-time sector assault · v0.5</p>
+          <p id="menu-scores" class="menu-scores"></p>
+          <div class="difficulty-picker">
+            <span class="label">Enemy doctrine</span>
+            <div class="difficulty-options" role="group" aria-label="AI difficulty">
+              <button type="button" class="btn btn-diff" data-difficulty="defensive">Defensive</button>
+              <button type="button" class="btn btn-diff btn-active" data-difficulty="balanced">Balanced</button>
+              <button type="button" class="btn btn-diff" data-difficulty="aggressive">Aggressive</button>
+            </div>
+            <p id="difficulty-blurb" class="difficulty-blurb">Standard tempo — watch for staging and weak sectors.</p>
+          </div>
+          <div class="menu-actions">
+            <button id="btn-new-game" class="btn btn-large btn-active">New Game</button>
+            <button id="btn-continue" class="btn btn-large" disabled title="Coming in a future update">Continue</button>
+            <button id="btn-settings" class="btn btn-large">Settings</button>
+            <button id="btn-credits" class="btn btn-large">Credits</button>
+          </div>
+          <div id="panel-settings" class="menu-panel hidden">
+            <h2>Settings</h2>
+            <div class="settings-row">
+              <label><input type="checkbox" id="menu-music-mute" /> Mute music</label>
+              <input type="range" id="menu-music-vol" min="0" max="100" value="35" aria-label="Music volume" />
+            </div>
+            <div class="settings-row">
+              <label><input type="checkbox" id="menu-sfx-mute" /> Mute SFX</label>
+              <input type="range" id="menu-sfx-vol" min="0" max="100" value="70" aria-label="SFX volume" />
+            </div>
+            <div class="settings-row">
+              <label><input type="checkbox" id="setting-hints" checked /> Show control hints</label>
+            </div>
+            <button id="btn-settings-close" class="btn">Done</button>
+          </div>
+          <div id="panel-credits" class="menu-panel hidden">
+            <h2>Credits</h2>
+            <p>Design &amp; code: NewDawn333</p>
+            <p>Built with TypeScript, Vite, and Canvas 2D.</p>
+            <p>Audio and sprites are procedural placeholders until asset packs land.</p>
+            <button id="btn-credits-close" class="btn">Close</button>
           </div>
         </div>
-      </header>
-      <div id="toolbar">
-        <span class="label">Mode:</span>
-        <button id="mode-select" class="btn btn-active">Select / Move</button>
-        <button id="mode-artillery" class="btn">Artillery</button>
-      </div>
-      <canvas id="game-canvas"></canvas>
-      <div id="legend">
-        <span><i class="dot player"></i> Your platoons</span>
-        <span><i class="dot enemy"></i> Enemy platoons</span>
-        <span><i class="dot mg"></i> Machine gun</span>
-        <span><i class="dot arty"></i> Artillery zone</span>
-        <span class="hint">Tap platoon to select · double-tap sector to advance · Artillery: tap NML to fire, tap bracket to stop</span>
-      </div>
-      <div id="overlay" class="hidden">
-        <div id="overlay-content"></div>
-      </div>
+      </section>
+
+      <section id="screen-game" class="screen screen-game hidden">
+        <header id="hud">
+          <div class="hud-left">
+            <h1>Trench Command</h1>
+            <span id="status">Staging troops — mass for the assault</span>
+          </div>
+          <div class="hud-center">
+            <button id="btn-pause" class="btn">Pause</button>
+            <button id="btn-menu-ingame" class="btn">Menu</button>
+          </div>
+          <div class="hud-right">
+            <div id="replacements">Call up troops via sector buttons below the map</div>
+            <div id="artillery-status">Artillery: —</div>
+          </div>
+        </header>
+        <div id="toolbar">
+          <span class="label">Mode:</span>
+          <button id="mode-select" class="btn btn-active">Select / Move</button>
+          <button id="mode-artillery" class="btn">Artillery</button>
+          <button id="btn-casualties" class="btn">Casualties</button>
+        </div>
+        <div id="map-stack">
+          <canvas id="game-canvas"></canvas>
+          <div id="casualty-overlay" class="casualty-overlay hidden">
+            <div class="casualty-panel">
+              <h2>Casualties</h2>
+              <p class="casualty-sub">Cumulative losses over mission time — game paused</p>
+              <canvas id="casualty-chart"></canvas>
+              <div class="casualty-legend">
+                <span><i class="dot player"></i> Your losses</span>
+                <span><i class="dot enemy"></i> Enemy losses</span>
+              </div>
+              <button id="btn-casualties-close" class="btn btn-active">Resume</button>
+            </div>
+          </div>
+        </div>
+        <div id="legend">
+          <span><i class="dot player"></i> Your platoons</span>
+          <span><i class="dot enemy"></i> Enemy platoons</span>
+          <span><i class="dot mg"></i> Machine gun</span>
+          <span><i class="dot arty"></i> Artillery zone</span>
+          <span class="hint">Tap platoon to select · double-tap sector to advance · Artillery: tap NML to fire, tap bracket to stop</span>
+        </div>
+        <div id="overlay" class="hidden">
+          <div id="overlay-content"></div>
+        </div>
+      </section>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

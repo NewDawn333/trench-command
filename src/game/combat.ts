@@ -8,6 +8,8 @@ import type {
   Side,
   Tracer,
 } from "../types";
+import type { MissionStats } from "../app/MissionStats";
+import { recordCasualtyDamage } from "../app/MissionStats";
 import { FIRE_RANGE, LAYOUT } from "../types";
 import { sectorCenterX, sectorFromX } from "./battlefield";
 import { adjacentSectorsByX, effectiveSector } from "./layout";
@@ -83,7 +85,8 @@ function addTracer(events: CombatEvents, x1: number, y1: number, x2: number, y2:
   events.tracers.push({ x1, y1, x2, y2, timer: 0.15, side });
 }
 
-function applyDamage(p: Platoon, amount: number, moraleHit: number): void {
+function applyDamage(p: Platoon, amount: number, moraleHit: number, stats: MissionStats): void {
+  recordCasualtyDamage(stats, p, amount);
   p.strength = Math.max(0, p.strength - amount);
   p.morale = Math.max(0, p.morale - moraleHit);
   if (p.strength <= 0 || p.morale < 15) {
@@ -109,6 +112,7 @@ export function tickEmplacements(
   platoons: Platoon[],
   dt: number,
   events: CombatEvents,
+  stats: MissionStats,
 ): void {
   for (const emp of emplacements) {
     emp.fireCooldown = Math.max(0, emp.fireCooldown - dt);
@@ -124,7 +128,7 @@ export function tickEmplacements(
     const target = targets[0];
     const dps = emp.type === "pillbox" ? 14 : 22;
     const dmg = dps * dt * (0.8 + Math.random() * 0.4);
-    applyDamage(target, dmg, dmg * 0.3);
+    applyDamage(target, dmg, dmg * 0.3, stats);
     addCasualty(events, target.x, target.y, "mg", target.side);
     addTracer(events, emp.x, emp.y, target.x, target.y, emp.side);
     emp.fireCooldown = emp.type === "pillbox" ? 0.08 : 0.05;
@@ -135,6 +139,7 @@ export function tickTrenchFire(
   platoons: Platoon[],
   dt: number,
   events: CombatEvents,
+  stats: MissionStats,
 ): void {
   const defenders = platoons.filter((p) => isCombatReady(p) && p.state === "front");
 
@@ -158,7 +163,7 @@ export function tickTrenchFire(
 
     const rate = 4;
     const dmg = rate * dt * (defender.strength / defender.maxStrength);
-    applyDamage(target, dmg, dmg * 0.15);
+    applyDamage(target, dmg, dmg * 0.15, stats);
     if (Math.random() < dt * 3) {
       addCasualty(events, target.x, target.y, "rifle", target.side);
       addTracer(events, defender.x, defender.y, target.x, target.y, defender.side);
@@ -166,10 +171,10 @@ export function tickTrenchFire(
   }
 }
 
-export function tickTrenchMelee(platoons: Platoon[], dt: number, events: CombatEvents): void {
+export function tickTrenchMelee(platoons: Platoon[], dt: number, events: CombatEvents, stats: MissionStats): void {
   for (let s = 0; s < 8; s++) {
-    resolveTrenchControlFight(platoons, dt, events, s, "player");
-    resolveTrenchControlFight(platoons, dt, events, s, "enemy");
+    resolveTrenchControlFight(platoons, dt, events, stats, s, "player");
+    resolveTrenchControlFight(platoons, dt, events, stats, s, "enemy");
   }
 }
 
@@ -183,6 +188,7 @@ function resolveTrenchControlFight(
   platoons: Platoon[],
   dt: number,
   events: CombatEvents,
+  stats: MissionStats,
   sector: number,
   invaderSide: Side,
 ): void {
@@ -219,12 +225,12 @@ function resolveTrenchControlFight(
 
   for (const p of invaders) {
     const dmg = (baseDmg * (dStr / total)) / invaders.length;
-    applyDamage(p, dmg, dmg * 0.25);
+    applyDamage(p, dmg, dmg * 0.25, stats);
     if (Math.random() < dt * 3) addCasualty(events, p.x, p.y, "rifle", p.side);
   }
   for (const p of defenders) {
     const dmg = (baseDmg * (iStr / total)) / defenders.length;
-    applyDamage(p, dmg, dmg * 0.25);
+    applyDamage(p, dmg, dmg * 0.25, stats);
     if (Math.random() < dt * 3) addCasualty(events, p.x, p.y, "rifle", p.side);
   }
   if (Math.random() < dt * 4 && invaders[0] && defenders[0]) {
@@ -233,7 +239,7 @@ function resolveTrenchControlFight(
 }
 
 /** Close-quarters firefight when opposing platoons meet in no man's land. */
-export function tickNmlEncounters(platoons: Platoon[], dt: number, events: CombatEvents): void {
+export function tickNmlEncounters(platoons: Platoon[], dt: number, events: CombatEvents, stats: MissionStats): void {
   const crossing = platoons.filter((p) => p.state === "crossing" && isCombatReady(p));
   const paired = new Set<string>();
 
@@ -255,8 +261,8 @@ export function tickNmlEncounters(platoons: Platoon[], dt: number, events: Comba
       const loserDmg = (14 + winMargin * 30) * dt;
       const winnerDmg = (4 + winMargin * 8) * dt;
 
-      applyDamage(loser, loserDmg, loserDmg * 0.5);
-      applyDamage(winner, winnerDmg, winnerDmg * 0.25);
+      applyDamage(loser, loserDmg, loserDmg * 0.5, stats);
+      applyDamage(winner, winnerDmg, winnerDmg * 0.25, stats);
 
       if (Math.random() < dt * 5) {
         addCasualty(events, loser.x, loser.y, "rifle", loser.side);
@@ -287,7 +293,13 @@ export function stopBattery(battery: ArtilleryBattery): void {
   battery.stateTimer = battery.stopDelay;
 }
 
-export function tickArtillery(batteries: ArtilleryBattery[], dt: number, events: CombatEvents, platoons: Platoon[]): void {
+export function tickArtillery(
+  batteries: ArtilleryBattery[],
+  dt: number,
+  events: CombatEvents,
+  platoons: Platoon[],
+  stats: MissionStats,
+): void {
   for (const b of batteries) {
     if (b.state === "idle") continue;
 
@@ -330,7 +342,7 @@ export function tickArtillery(batteries: ArtilleryBattery[], dt: number, events:
       const falloff = 1 - dist / 35;
       const dmg = 12 * falloff * (p.state === "crossing" ? 1.4 : p.state === "staging" ? 1.1 : 0.35);
       const cause: CasualtyCause = p.side === b.side ? "friendly_arty" : "enemy_arty";
-      applyDamage(p, dmg, dmg * 0.5);
+      applyDamage(p, dmg, dmg * 0.5, stats);
       if (Math.random() < falloff * 0.5) addCasualty(events, p.x, p.y, cause, p.side);
     }
   }

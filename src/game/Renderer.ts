@@ -20,11 +20,23 @@ export class Renderer {
     this.ctx = ctx;
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    if (typeof ResizeObserver !== "undefined" && canvas.parentElement) {
+      const ro = new ResizeObserver(() => this.resize());
+      ro.observe(canvas.parentElement);
+    }
   }
 
   resize(): void {
-    const rect = this.canvas.parentElement?.getBoundingClientRect();
-    const w = rect?.width ?? CONFIG.mapWidth;
+    const parent = this.canvas.parentElement;
+    let w = parent?.getBoundingClientRect().width ?? 0;
+
+    // Parent is display:none on load — fall back to app width so canvas isn't 0px tall.
+    if (w < 64) {
+      const app = document.getElementById("app");
+      w = app?.getBoundingClientRect().width ?? CONFIG.mapWidth;
+    }
+
+    w = Math.max(64, Math.min(w, CONFIG.mapWidth));
     this.scale = w / CONFIG.mapWidth;
     this.canvas.width = CONFIG.mapWidth;
     this.canvas.height = CONFIG.mapHeight;

@@ -57,7 +57,16 @@ import {
 } from "./simulation";
 import { CONFIG, DEV_MODE } from "../types";
 import { queueSound } from "../audio/AudioDirector";
+import type { MissionStats } from "../app/MissionStats";
+import { createMissionStats, sampleCasualtyHistory } from "../app/MissionStats";
+import type { AIDifficulty } from "../app/Difficulty";
+import { getAIProfile } from "../app/Difficulty";
 import { createSectors, sectorFromX, type MoveTapZone } from "./battlefield";
+
+export interface NewGameOptions {
+  aiDifficulty?: AIDifficulty;
+  campaignLevel?: number;
+}
 
 export type GamePhase = "playing" | "victory" | "defeat";
 
@@ -79,9 +88,16 @@ export interface GameState {
   artyPreview: { x: number; y: number; w: number; h: number } | null;
   time: number;
   soundCues: SoundCue[];
+  stats: MissionStats;
+  showCasualtyChart: boolean;
+  aiDifficulty: AIDifficulty;
+  campaignLevel: number;
 }
 
-export function createGame(): GameState {
+export function createGame(options: NewGameOptions = {}): GameState {
+  const aiDifficulty = options.aiDifficulty ?? "balanced";
+  const campaignLevel = options.campaignLevel ?? 1;
+  const aiProfile = getAIProfile(aiDifficulty, campaignLevel);
   const platoons = [...createPlatoons("player"), ...createPlatoons("enemy")];
   layoutAllPlatoons(platoons);
   return {
@@ -92,7 +108,7 @@ export function createGame(): GameState {
     enemyBatteries: createEnemyBatteries(),
     assaults: [],
     events: { casualties: [], tracers: [], impacts: [] },
-    ai: createAIState(),
+    ai: createAIState(aiProfile),
     paused: false,
     phase: "playing",
     selectedPlatoons: [],
@@ -102,12 +118,35 @@ export function createGame(): GameState {
     artyPreview: null,
     time: 0,
     soundCues: [],
+    stats: createMissionStats(),
+    showCasualtyChart: false,
+    aiDifficulty,
+    campaignLevel,
   };
 }
 
 export function togglePause(game: GameState): void {
   if (game.phase !== "playing") return;
+  if (game.showCasualtyChart) return;
   game.paused = !game.paused;
+}
+
+export function toggleCasualtyChart(game: GameState): boolean {
+  if (game.phase !== "playing") return false;
+  game.showCasualtyChart = !game.showCasualtyChart;
+  if (game.showCasualtyChart) {
+    sampleCasualtyHistory(game.stats, game.time);
+    game.paused = true;
+  } else {
+    game.paused = false;
+  }
+  return game.showCasualtyChart;
+}
+
+export function closeCasualtyChart(game: GameState): void {
+  if (!game.showCasualtyChart) return;
+  game.showCasualtyChart = false;
+  game.paused = false;
 }
 
 export function setMode(game: GameState, mode: InteractionMode): void {
@@ -166,6 +205,7 @@ export function applySelectedMove(game: GameState, sector: number, zone: MoveTap
   const front = selected.filter((p) => p.state === "front");
   const staging = selected.filter((p) => p.state === "staging");
   const invaders = selected.filter((p) => p.state === "enemy_trench" && isInvader(p));
+  let tasked = false;
 
   if (zone === "player_trench") {
     if (front.length > 0) {
@@ -174,26 +214,34 @@ export function applySelectedMove(game: GameState, sector: number, zone: MoveTap
         front.map((p) => p.id),
         sector,
       );
+      tasked = true;
     }
     if (staging.length > 0) {
       staging.forEach((p, i) => {
         p.sector = sector;
         movePlatoonToFront(p, i, staging.length);
       });
+      tasked = true;
     }
   } else if (zone === "player_staging") {
     const toStage = selected.filter((p) => p.state === "staging" || p.state === "front");
-    toStage.forEach((p) => {
-      p.sector = sector;
-      movePlatoonToStaging(p);
-    });
+    if (toStage.length > 0) {
+      toStage.forEach((p) => {
+        p.sector = sector;
+        movePlatoonToStaging(p);
+      });
+      tasked = true;
+    }
   } else if (zone === "enemy_trench" && invaders.length > 0) {
     moveSelectedLaterally(
       game.platoons,
       invaders.map((p) => p.id),
       sector,
     );
+    tasked = true;
   }
+
+  if (tasked) clearSelection(game);
 }
 
 export function selectPlatoonAt(game: GameState, platoonId: string, _additive: boolean): void {
@@ -216,6 +264,7 @@ export function assignSelectedToSector(game: GameState, sector: number): void {
 export function moveSelectedLaterallyInGame(game: GameState, sector: number): void {
   moveSelectedLaterally(game.platoons, game.selectedPlatoons, sector);
   game.selectedSector = sector;
+  clearSelection(game);
 }
 
 export function callUpTroops(game: GameState, sector?: number): void {
@@ -247,6 +296,7 @@ export function playerSectorDoubleClick(game: GameState, sector: number): void {
   playerAssault(game, sector);
   moveStagingToFront(game.platoons, sector, "player");
   layoutAllPlatoons(game.platoons);
+  clearSelection(game);
 }
 
 export function placeMgInSector(game: GameState, sector: number): boolean {
@@ -257,7 +307,10 @@ export function placeMgInSector(game: GameState, sector: number): boolean {
 export function playerAssault(game: GameState, sector: number): boolean {
   if (game.phase !== "playing") return false;
   const order = launchAssault(game.platoons, "player", sector, game.assaults);
-  if (order) game.selectedSector = sector;
+  if (order) {
+    game.selectedSector = sector;
+    game.stats.assaultsOrdered += 1;
+  }
   return !!order;
 }
 
@@ -322,17 +375,18 @@ export function tick(game: GameState, dt: number): void {
   game.replacementPool = tickReplacements(game.platoons, dt);
   spawnEnemyReplacements(game.platoons, dt);
 
-  tickNmlEncounters(game.platoons, dt, game.events);
+  tickNmlEncounters(game.platoons, dt, game.events, game.stats);
   tickHomeTrenchRelief(game.platoons, game.assaults);
   tickPlatoonMovement(game.platoons, dt, game.sectors);
   tickEmplacementCapture(game.emplacements, game.platoons);
-  tickEmplacements(game.emplacements, game.platoons, dt, game.events);
-  tickTrenchFire(game.platoons, dt, game.events);
-  tickTrenchMelee(game.platoons, dt, game.events);
-  tickArtillery(game.playerBatteries, dt, game.events, game.platoons);
-  tickArtillery(game.enemyBatteries, dt, game.events, game.platoons);
-  tickAI(game.platoons, game.assaults, game.enemyBatteries, game.sectors, game.ai, dt);
+  tickEmplacements(game.emplacements, game.platoons, dt, game.events, game.stats);
+  tickTrenchFire(game.platoons, dt, game.events, game.stats);
+  tickTrenchMelee(game.platoons, dt, game.events, game.stats);
+  tickArtillery(game.playerBatteries, dt, game.events, game.platoons, game.stats);
+  tickArtillery(game.enemyBatteries, dt, game.events, game.platoons, game.stats);
+  tickAI(game.platoons, game.assaults, game.enemyBatteries, game.sectors, game.emplacements, game.ai, dt);
   decayEffects(game.events, dt);
+  sampleCasualtyHistory(game.stats, game.time);
 
   game.assaults = game.assaults.filter((a) => {
     const active = game.platoons.some((p) => {
@@ -352,6 +406,7 @@ export function getStatusText(game: GameState): string {
   if (game.phase === "victory") return "Enemy line overrun — sector secured!";
   if (game.phase === "defeat") return "Your line has collapsed.";
   if (game.paused) return "Paused — plan your next move";
+  if (game.showCasualtyChart) return "Casualties — game paused";
   if (game.mode === "artillery") {
     const ready = game.playerBatteries.filter((b) => b.ammo > 0 && b.state === "idle").length;
     return ready > 0
@@ -363,9 +418,9 @@ export function getStatusText(game: GameState): string {
   if (sector !== null) {
     const staging = platoonsInSector(game.platoons, "player", sector, ["staging"]).reduce((a, p) => a + p.strength, 0);
     const enemy = platoonsInSector(game.platoons, "enemy", sector, ["staging", "front"]).reduce((a, p) => a + p.strength, 0);
-    return `Sector ${sector + 1}: ${Math.round(staging)} men staging · ${Math.round(enemy)} enemy opposite`;
+    return `Sector ${sector + 1}: ${Math.round(staging)} men staging · ${Math.round(enemy)} enemy opposite · AI ${game.ai.profile.label}`;
   }
-  return "Tap platoon to select · tap trench/staging to move · double-tap sector to advance";
+  return `Opponent: ${game.ai.profile.label} · tap platoon · double-tap sector to advance`;
 }
 
 export function getArtilleryStatus(game: GameState): string {

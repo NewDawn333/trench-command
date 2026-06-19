@@ -1,5 +1,6 @@
 import type { AssaultOrder, FixedEmplacement, Platoon, Sector, Side } from "../types";
 import { CONFIG, DEV_MODE, LAYOUT, PLATOON_MOVE_SPEED } from "../types";
+import type { AIProfile } from "../app/Difficulty";
 import { frontTrenchY } from "./battlefield";
 import {
   beginCrossing,
@@ -17,6 +18,7 @@ import { defaultArtyZoneFromPoint, orderBatteryFire } from "./combat";
 import { destroyEmplacementsInSector } from "./emplacements";
 import { layoutAllPlatoons } from "./layout";
 import type { ArtilleryBattery } from "../types";
+import { pickEnemyArtyZone, pickMassSector, sectorHasEnemyPillbox } from "./aiTargeting";
 
 let assaultCounter = 1;
 
@@ -26,15 +28,17 @@ export interface AIState {
   assaultCooldown: number;
   artyCooldown: number;
   invaderSpreadTimer: number;
+  profile: AIProfile;
 }
 
-export function createAIState(): AIState {
+export function createAIState(profile: AIProfile): AIState {
   return {
     massingSector: null,
-    massTimer: 8 + Math.random() * 10,
-    assaultCooldown: 20,
-    artyCooldown: 15,
-    invaderSpreadTimer: 4,
+    massTimer: profile.massingDurationMin + Math.random() * (profile.massingDurationMax - profile.massingDurationMin),
+    assaultCooldown: profile.assaultCooldownMin * 0.6,
+    artyCooldown: profile.artyCooldownMin * 0.5,
+    invaderSpreadTimer: profile.invaderSpreadMin,
+    profile,
   };
 }
 
@@ -127,22 +131,26 @@ export function tickAI(
   assaults: AssaultOrder[],
   batteries: ArtilleryBattery[],
   sectors: Sector[],
+  emplacements: FixedEmplacement[],
   ai: AIState,
   dt: number,
 ): void {
+  const profile = ai.profile;
   ai.massTimer -= dt;
   ai.assaultCooldown -= dt;
   ai.artyCooldown -= dt;
 
   if (ai.massingSector === null || ai.massTimer <= 0) {
-    ai.massingSector = pickMassSector(platoons, sectors);
-    ai.massTimer = 6 + Math.random() * 8;
+    ai.massingSector = pickMassSector(platoons, sectors, emplacements, profile.pillboxAssaultPenalty);
+    ai.massTimer =
+      profile.massingDurationMin +
+      Math.random() * (profile.massingDurationMax - profile.massingDurationMin);
   }
 
   const sector = ai.massingSector;
   if (sector !== null) {
     const reserves = platoons.filter((p) => p.side === "enemy" && p.state === "reserve" && p.strength > 0);
-    if (reserves.length > 0 && Math.random() < dt * 0.4) {
+    if (reserves.length > 0 && Math.random() < dt * profile.reserveCallRate) {
       const p = reserves[0];
       p.sector = sector;
       movePlatoonToStaging(p);
@@ -152,11 +160,21 @@ export function tickAI(
   if (ai.artyCooldown <= 0) {
     const idle = batteries.find((b) => b.side === "enemy" && b.state === "idle" && b.ammo > 5);
     if (idle) {
-      const playerStaging = platoons.filter((p) => p.side === "player" && p.state === "staging" && p.strength > 0);
-      if (playerStaging.length >= 2) {
-        const target = playerStaging[Math.floor(Math.random() * playerStaging.length)];
-        orderBatteryFire(idle, defaultArtyZoneFromPoint(target.x, target.y));
-        ai.artyCooldown = 25 + Math.random() * 20;
+      const zone = pickEnemyArtyZone(platoons, sectors, emplacements);
+      if (zone) {
+        orderBatteryFire(idle, zone);
+        ai.artyCooldown =
+          profile.artyCooldownMin +
+          Math.random() * (profile.artyCooldownMax - profile.artyCooldownMin);
+      } else {
+        const playerStaging = platoons.filter((p) => p.side === "player" && p.state === "staging" && p.strength > 0);
+        if (playerStaging.length >= 1) {
+          const target = playerStaging[Math.floor(Math.random() * playerStaging.length)];
+          orderBatteryFire(idle, defaultArtyZoneFromPoint(target.x, target.y));
+          ai.artyCooldown =
+            profile.artyCooldownMin +
+            Math.random() * (profile.artyCooldownMax - profile.artyCooldownMin);
+        }
       }
     }
   }
@@ -164,10 +182,15 @@ export function tickAI(
   if (ai.assaultCooldown <= 0 && sector !== null) {
     moveStagingToFront(platoons, sector, "enemy");
     const frontStr = totalStrength(platoonsInSector(platoons, "enemy", sector, ["front"]));
-    const threshold = DEV_MODE ? CONFIG.platoonSize : CONFIG.platoonSize * 3;
+    let threshold = DEV_MODE ? CONFIG.platoonSize : CONFIG.platoonSize * 3;
+    threshold *= profile.assaultThresholdMult;
+    if (sectorHasEnemyPillbox(emplacements, sector)) threshold *= profile.pillboxAssaultPenalty;
+
     if (frontStr >= threshold) {
       launchAssault(platoons, "enemy", sector, assaults);
-      ai.assaultCooldown = 35 + Math.random() * 25;
+      ai.assaultCooldown =
+        profile.assaultCooldownMin +
+        Math.random() * (profile.assaultCooldownMax - profile.assaultCooldownMin);
       ai.massingSector = null;
     }
   }
@@ -175,9 +198,9 @@ export function tickAI(
   for (const s of sectors) {
     if (s.controller === "player") {
       const enemies = platoonsInSector(platoons, "enemy", s.index, ["staging", "front", "reserve"]);
-      if (enemies.length > 0 && ai.assaultCooldown <= 5 && Math.random() < dt * 0.15) {
+      if (enemies.length > 0 && ai.assaultCooldown <= 5 && Math.random() < dt * profile.counterAttackRate) {
         launchAssault(platoons, "enemy", s.index, assaults);
-        ai.assaultCooldown = 30;
+        ai.assaultCooldown = profile.assaultCooldownMin * 0.85;
       }
     }
   }
@@ -191,6 +214,7 @@ function platoonAtTarget(p: Platoon, threshold = 3): boolean {
 
 /** Enemy invaders in player trench spread laterally to overrun adjacent sectors. */
 function tickAIInvaderSpread(platoons: Platoon[], ai: AIState, dt: number): void {
+  const profile = ai.profile;
   ai.invaderSpreadTimer -= dt;
   if (ai.invaderSpreadTimer > 0) return;
 
@@ -200,7 +224,8 @@ function tickAIInvaderSpread(platoons: Platoon[], ai: AIState, dt: number): void
   }
   if (beachheads.size === 0) return;
 
-  ai.invaderSpreadTimer = 3 + Math.random() * 2;
+  ai.invaderSpreadTimer =
+    profile.invaderSpreadMin + Math.random() * (profile.invaderSpreadMax - profile.invaderSpreadMin);
 
   for (const fromSector of beachheads) {
     const invaders = platoonsInSector(platoons, "enemy", fromSector, ["enemy_trench"])
@@ -210,7 +235,8 @@ function tickAIInvaderSpread(platoons: Platoon[], ai: AIState, dt: number): void
     const toSector = pickInvaderSpreadTarget(platoons, fromSector);
     if (toSector === null || toSector === fromSector) continue;
 
-    const movers = invaders.slice(0, Math.max(1, Math.ceil(invaders.length / 2)));
+    const count = Math.max(1, Math.ceil(invaders.length * profile.invaderSpreadFraction));
+    const movers = invaders.slice(0, count);
     movers.forEach((p, i) => movePlatoonLaterally(p, toSector, i, movers.length));
   }
 }
@@ -235,20 +261,6 @@ function pickInvaderSpreadTarget(platoons: Platoon[], fromSector: number): numbe
     }
   }
 
-  return best;
-}
-
-function pickMassSector(platoons: Platoon[], sectors: Sector[]): number {
-  let best = Math.floor(Math.random() * CONFIG.sectorCount);
-  let bestScore = 0;
-  for (let s = 0; s < CONFIG.sectorCount; s++) {
-    const weak = platoonsInSector(platoons, "player", s, ["front"]).reduce((a, p) => a + p.strength, 0);
-    const score = (120 - weak) + (sectors[s].controller === "player" ? 40 : 0) + Math.random() * 20;
-    if (score > bestScore) {
-      bestScore = score;
-      best = s;
-    }
-  }
   return best;
 }
 

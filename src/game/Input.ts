@@ -2,6 +2,7 @@ import type { GameState } from "./Game";
 import {
   applySelectedMove,
   callUpTroops,
+  closeCasualtyChart,
   getArtilleryStatus,
   getStatusText,
   handleArtilleryTap,
@@ -12,22 +13,38 @@ import {
   selectPlatoonSingle,
   setMode,
   stopArtilleryAtPoint,
+  toggleCasualtyChart,
+  togglePause,
 } from "./Game";
 import type { Renderer } from "./Renderer";
 import { isInNml, isOnSectorStrip, moveTapZoneAt, sectorFromX, sectorStripAction } from "./battlefield";
 import { defaultArtyZoneFromPoint } from "./combat";
 import { isInvader } from "./platoons";
 import type { Platoon } from "../types";
-import type { AudioManager } from "../audio/AudioManager";
 
-const DOUBLE_TAP_MS = 380;
+const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_DIST = 32;
+
+export interface GameUIHandlers {
+  onMenu: () => void;
+  isMissionActive: () => boolean;
+  onCasualtyChartChange?: (open: boolean) => void;
+}
+
+function syncCasualtyOverlay(open: boolean): void {
+  document.getElementById("casualty-overlay")?.classList.toggle("hidden", !open);
+  document.getElementById("btn-casualties")?.classList.toggle("btn-active", open);
+}
+
+function syncPauseButton(paused: boolean): void {
+  const pauseBtn = document.getElementById("btn-pause");
+  if (pauseBtn) pauseBtn.textContent = paused ? "Resume" : "Pause";
+}
 
 export class InputHandler {
   private dragging = false;
   private dragStart: { x: number; y: number } | null = null;
   private lastTap: { t: number; x: number; y: number } | null = null;
-  private pendingSingle: ReturnType<typeof setTimeout> | null = null;
   private activePointerId: number | null = null;
 
   constructor(
@@ -67,24 +84,9 @@ export class InputHandler {
     );
   }
 
-  private cancelPendingSingle(): void {
-    if (this.pendingSingle) {
-      clearTimeout(this.pendingSingle);
-      this.pendingSingle = null;
-    }
-  }
-
-  private scheduleSingleTap(action: () => void): void {
-    this.cancelPendingSingle();
-    this.pendingSingle = setTimeout(() => {
-      this.pendingSingle = null;
-      action();
-    }, DOUBLE_TAP_MS);
-  }
-
   private onPointerDown(e: PointerEvent): void {
     const game = this.getGame();
-    if (game.phase !== "playing") return;
+    if (game.phase !== "playing" || game.paused) return;
     if (this.activePointerId !== null && e.pointerId !== this.activePointerId) return;
 
     this.activePointerId = e.pointerId;
@@ -125,6 +127,13 @@ export class InputHandler {
     if (e.pointerId !== this.activePointerId) return;
 
     const game = this.getGame();
+    if (game.phase !== "playing" || game.paused) {
+      this.dragging = false;
+      this.dragStart = null;
+      this.activePointerId = null;
+      return;
+    }
+
     const { x, y } = this.renderer.screenToWorld(e.clientX, e.clientY);
     const moved =
       this.dragStart !== null && Math.hypot(x - this.dragStart.x, y - this.dragStart.y) > 10;
@@ -144,6 +153,10 @@ export class InputHandler {
     this.activePointerId = null;
   }
 
+  /**
+   * Single taps apply immediately. Double-tap is detected by comparing this tap
+   * to the previous one — no debounce timer on selection.
+   */
   private handleSelectTap(x: number, y: number): void {
     const game = this.getGame();
     if (game.phase !== "playing") return;
@@ -157,9 +170,7 @@ export class InputHandler {
       Math.hypot(x - this.lastTap.x, y - this.lastTap.y) < DOUBLE_TAP_DIST;
 
     if (isDouble) {
-      this.cancelPendingSingle();
       this.lastTap = null;
-
       if (platoonId && this.canGroupSelect(game, platoonId)) {
         selectPlatoonGroup(game, platoonId);
       } else if (!platoonId) {
@@ -170,18 +181,11 @@ export class InputHandler {
       return;
     }
 
-    this.lastTap = { t: now, x, y };
-
-    this.scheduleSingleTap(() => {
-      if (platoonId) {
-        selectPlatoonSingle(game, platoonId);
-        return;
-      }
-
-      if (isInNml(y) && stopArtilleryAtPoint(game, x, y)) {
-        return;
-      }
-
+    if (platoonId) {
+      selectPlatoonSingle(game, platoonId);
+    } else if (isInNml(y) && stopArtilleryAtPoint(game, x, y)) {
+      /* arty stop */
+    } else {
       const sector = sectorFromX(x);
       const zone = moveTapZoneAt(y);
       if (game.selectedPlatoons.length > 0 && zone !== "none") {
@@ -189,7 +193,9 @@ export class InputHandler {
       } else {
         game.selectedSector = sector;
       }
-    });
+    }
+
+    this.lastTap = { t: now, x, y };
   }
 }
 
@@ -202,14 +208,43 @@ export function bindUI(
   getGame: () => GameState,
   onUpdate: () => void,
   _input: InputHandler,
-  audio: AudioManager,
+  handlers: GameUIHandlers,
 ): void {
   const pauseBtn = document.getElementById("btn-pause")!;
 
   pauseBtn.addEventListener("click", () => {
+    if (!handlers.isMissionActive() && getGame().phase !== "playing") return;
     const g = getGame();
-    g.paused = !g.paused;
-    pauseBtn.textContent = g.paused ? "Resume" : "Pause";
+    if (g.showCasualtyChart) return;
+    togglePause(g);
+    syncPauseButton(g.paused);
+    onUpdate();
+  });
+
+  document.getElementById("btn-menu-ingame")!.addEventListener("click", () => {
+    closeCasualtyChart(getGame());
+    syncCasualtyOverlay(false);
+    handlers.onMenu();
+    syncPauseButton(false);
+  });
+
+  const openCasualtyChart = (): void => {
+    const g = getGame();
+    if (g.phase !== "playing") return;
+    const open = toggleCasualtyChart(g);
+    syncCasualtyOverlay(open);
+    syncPauseButton(g.paused);
+    handlers.onCasualtyChartChange?.(open);
+    onUpdate();
+  };
+
+  document.getElementById("btn-casualties")!.addEventListener("click", openCasualtyChart);
+  document.getElementById("btn-casualties-close")!.addEventListener("click", () => {
+    const g = getGame();
+    closeCasualtyChart(g);
+    syncCasualtyOverlay(false);
+    syncPauseButton(false);
+    handlers.onCasualtyChartChange?.(false);
     onUpdate();
   });
 
@@ -225,57 +260,15 @@ export function bindUI(
       onUpdate();
     });
   }
-
-  const musicVol = document.getElementById("music-vol") as HTMLInputElement;
-  const sfxVol = document.getElementById("sfx-vol") as HTMLInputElement;
-  const musicMute = document.getElementById("music-mute") as HTMLInputElement;
-  const sfxMute = document.getElementById("sfx-mute") as HTMLInputElement;
-
-  const syncAudioUI = (): void => {
-    const s = audio.getSettings();
-    musicVol.value = String(Math.round(s.musicVolume * 100));
-    sfxVol.value = String(Math.round(s.sfxVolume * 100));
-    musicMute.checked = !s.musicEnabled;
-    sfxMute.checked = !s.sfxEnabled;
-  };
-
-  musicVol.addEventListener("input", () => {
-    audio.updateSettings({ musicVolume: Number(musicVol.value) / 100 });
-  });
-  sfxVol.addEventListener("input", () => {
-    audio.updateSettings({ sfxVolume: Number(sfxVol.value) / 100 });
-  });
-  musicMute.addEventListener("change", () => {
-    audio.updateSettings({ musicEnabled: !musicMute.checked });
-    syncAudioUI();
-  });
-  sfxMute.addEventListener("change", () => {
-    audio.updateSettings({ sfxEnabled: !sfxMute.checked });
-  });
-
-  syncAudioUI();
 }
 
-export function updateHUD(game: GameState, _audio?: AudioManager): void {
+export function updateHUD(game: GameState): void {
   const status = document.getElementById("status")!;
   const replacements = document.getElementById("replacements")!;
   const artyStatus = document.getElementById("artillery-status")!;
-  const overlay = document.getElementById("overlay")!;
-  const overlayContent = document.getElementById("overlay-content")!;
 
   syncModeButtons(game.mode);
   status.textContent = getStatusText(game);
   replacements.textContent = "Sector strip: + Call Up · + MG";
   artyStatus.textContent = getArtilleryStatus(game);
-
-  if (game.phase !== "playing") {
-    overlay.classList.remove("hidden");
-    overlayContent.innerHTML =
-      game.phase === "victory"
-        ? `<h2>Sector Captured</h2><p>The entire enemy trench line is yours.</p><button class="btn" id="btn-restart">Next Level</button>`
-        : `<h2>Line Lost</h2><p>Your battalion cannot hold the front.</p><button class="btn" id="btn-restart">Try Again</button>`;
-    document.getElementById("btn-restart")?.addEventListener("click", () => location.reload());
-  } else {
-    overlay.classList.add("hidden");
-  }
 }
