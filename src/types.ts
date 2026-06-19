@@ -85,6 +85,15 @@ export interface Tracer {
   side: Side;
 }
 
+export type SoundCue =
+  | { type: "rifle" }
+  | { type: "mg" }
+  | { type: "arty_impact" }
+  | { type: "whistle" }
+  | { type: "arty_aim" }
+  | { type: "sector_capture"; sector: number }
+  | { type: "sector_loss"; sector: number };
+
 export interface Sector {
   index: number;
   x: number;

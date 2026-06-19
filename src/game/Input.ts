@@ -18,6 +18,7 @@ import { isInNml, isOnSectorStrip, moveTapZoneAt, sectorFromX, sectorStripAction
 import { defaultArtyZoneFromPoint } from "./combat";
 import { isInvader } from "./platoons";
 import type { Platoon } from "../types";
+import type { AudioManager } from "../audio/AudioManager";
 
 const DOUBLE_TAP_MS = 380;
 const DOUBLE_TAP_DIST = 32;
@@ -197,7 +198,12 @@ function syncModeButtons(mode: "select" | "artillery"): void {
   document.getElementById("mode-artillery")?.classList.toggle("btn-active", mode === "artillery");
 }
 
-export function bindUI(getGame: () => GameState, onUpdate: () => void, _input: InputHandler): void {
+export function bindUI(
+  getGame: () => GameState,
+  onUpdate: () => void,
+  _input: InputHandler,
+  audio: AudioManager,
+): void {
   const pauseBtn = document.getElementById("btn-pause")!;
 
   pauseBtn.addEventListener("click", () => {
@@ -219,9 +225,38 @@ export function bindUI(getGame: () => GameState, onUpdate: () => void, _input: I
       onUpdate();
     });
   }
+
+  const musicVol = document.getElementById("music-vol") as HTMLInputElement;
+  const sfxVol = document.getElementById("sfx-vol") as HTMLInputElement;
+  const musicMute = document.getElementById("music-mute") as HTMLInputElement;
+  const sfxMute = document.getElementById("sfx-mute") as HTMLInputElement;
+
+  const syncAudioUI = (): void => {
+    const s = audio.getSettings();
+    musicVol.value = String(Math.round(s.musicVolume * 100));
+    sfxVol.value = String(Math.round(s.sfxVolume * 100));
+    musicMute.checked = !s.musicEnabled;
+    sfxMute.checked = !s.sfxEnabled;
+  };
+
+  musicVol.addEventListener("input", () => {
+    audio.updateSettings({ musicVolume: Number(musicVol.value) / 100 });
+  });
+  sfxVol.addEventListener("input", () => {
+    audio.updateSettings({ sfxVolume: Number(sfxVol.value) / 100 });
+  });
+  musicMute.addEventListener("change", () => {
+    audio.updateSettings({ musicEnabled: !musicMute.checked });
+    syncAudioUI();
+  });
+  sfxMute.addEventListener("change", () => {
+    audio.updateSettings({ sfxEnabled: !sfxMute.checked });
+  });
+
+  syncAudioUI();
 }
 
-export function updateHUD(game: GameState): void {
+export function updateHUD(game: GameState, _audio?: AudioManager): void {
   const status = document.getElementById("status")!;
   const replacements = document.getElementById("replacements")!;
   const artyStatus = document.getElementById("artillery-status")!;

@@ -8,6 +8,12 @@ body {
   color: #e8e4dc;
   font-family: system-ui, -apple-system, sans-serif;
   min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 #app {
@@ -51,6 +57,28 @@ body {
   align-items: flex-end;
   font-size: 0.8rem;
   color: #b8b4a8;
+}
+
+.audio-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.audio-controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #989890;
+}
+
+.audio-controls input[type="range"] {
+  width: 72px;
+  accent-color: #7a8a60;
 }
 
 #toolbar {
@@ -115,6 +143,27 @@ body {
   border-radius: 8px;
   border: 1px solid #3a4034;
   cursor: crosshair;
+  touch-action: none;
+}
+
+@media (max-width: 640px) {
+  #app {
+    padding: 8px 10px 16px;
+  }
+
+  #hud h1 {
+    font-size: 1.05rem;
+  }
+
+  .audio-controls input[type="range"] {
+    width: 56px;
+  }
+
+  #legend .hint {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+  }
 }
 
 #legend {

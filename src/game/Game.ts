@@ -7,6 +7,7 @@ import type {
   Platoon,
   Sector,
   ShellImpact,
+  SoundCue,
   Tracer,
 } from "../types";
 import {
@@ -55,6 +56,7 @@ import {
   type AIState,
 } from "./simulation";
 import { CONFIG, DEV_MODE } from "../types";
+import { queueSound } from "../audio/AudioDirector";
 import { createSectors, sectorFromX, type MoveTapZone } from "./battlefield";
 
 export type GamePhase = "playing" | "victory" | "defeat";
@@ -76,6 +78,7 @@ export interface GameState {
   replacementPool: number;
   artyPreview: { x: number; y: number; w: number; h: number } | null;
   time: number;
+  soundCues: SoundCue[];
 }
 
 export function createGame(): GameState {
@@ -98,6 +101,7 @@ export function createGame(): GameState {
     replacementPool: 0,
     artyPreview: null,
     time: 0,
+    soundCues: [],
   };
 }
 
@@ -239,6 +243,7 @@ export function moveSelectedToFront(game: GameState, sector: number): void {
 export function playerSectorDoubleClick(game: GameState, sector: number): void {
   if (game.phase !== "playing") return;
   game.selectedSector = sector;
+  queueSound(game, { type: "whistle" });
   playerAssault(game, sector);
   moveStagingToFront(game.platoons, sector, "player");
   layoutAllPlatoons(game.platoons);
@@ -282,6 +287,7 @@ export function handleArtilleryTap(game: GameState, x: number, y: number): "fire
   }
 
   orderBatteryFire(battery, artyZoneForSector(sector));
+  queueSound(game, { type: "arty_aim" });
   game.artyPreview = null;
   return "fired";
 }

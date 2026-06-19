@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Trench Command</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
@@ -19,6 +20,12 @@
         <div class="hud-right">
           <div id="replacements">Call up troops via sector buttons below the map</div>
           <div id="artillery-status">Artillery: —</div>
+          <div id="audio-controls" class="audio-controls">
+            <label><input type="checkbox" id="music-mute" /> Mute music</label>
+            <input type="range" id="music-vol" min="0" max="100" value="35" aria-label="Music volume" />
+            <label><input type="checkbox" id="sfx-mute" /> Mute SFX</label>
+            <input type="range" id="sfx-vol" min="0" max="100" value="70" aria-label="SFX volume" />
+          </div>
         </div>
       </header>
       <div id="toolbar">

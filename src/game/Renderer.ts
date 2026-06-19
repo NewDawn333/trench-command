@@ -1,15 +1,14 @@
 import type { GameState } from "./Game";
 import { reservesAvailableForSector } from "./Game";
-import type { CasualtyCause, Platoon } from "../types";
 import { CONFIG, LAYOUT } from "../types";
 import { callUpButtonRect, mgButtonRect, sectorCenterX, sectorWidth } from "./battlefield";
-
-const CAUSE_LABEL: Record<CasualtyCause, string> = {
-  mg: "MG",
-  rifle: "Rifle",
-  enemy_arty: "Enemy shell",
-  friendly_arty: "Friendly shell",
-};
+import {
+  drawEmplacementSprite,
+  drawPlatoonSprite,
+  drawShellImpact,
+  drawTracerLine,
+  drawTrenchParapet,
+} from "../render/sprites";
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -76,7 +75,7 @@ export class Renderer {
   }
 
   private drawTrenches(ctx: CanvasRenderingContext2D): void {
-    const drawLine = (y: number, color: string, label: string, ly: number) => {
+    const drawLine = (y: number, color: string, parapet: string, label: string, ly: number) => {
       ctx.strokeStyle = color;
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -85,13 +84,14 @@ export class Renderer {
         ctx.lineTo(x, y + Math.sin(x * 0.04) * 3);
       }
       ctx.stroke();
+      drawTrenchParapet(ctx, y, parapet);
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       ctx.font = "11px system-ui";
       ctx.fillText(label, 8, ly);
     };
 
-    drawLine(LAYOUT.enemyTrenchY, "#6b4a4a", "Enemy trench", LAYOUT.enemyTrenchY - 6);
-    drawLine(LAYOUT.playerTrenchY, "#4a5a6b", "Your trench", LAYOUT.playerTrenchY + 14);
+    drawLine(LAYOUT.enemyTrenchY, "#6b4a4a", "#5a4038", "Enemy trench", LAYOUT.enemyTrenchY - 6);
+    drawLine(LAYOUT.playerTrenchY, "#4a5a6b", "#3a4858", "Your trench", LAYOUT.playerTrenchY + 14);
     ctx.fillStyle = "rgba(200,180,140,0.25)";
     ctx.font = "12px system-ui";
     ctx.fillText("NO MAN'S LAND", CONFIG.mapWidth / 2 - 52, (LAYOUT.nmlTop + LAYOUT.nmlBottom) / 2);
@@ -141,12 +141,8 @@ export class Renderer {
 
   private drawEmplacements(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (const e of game.emplacements) {
-      ctx.fillStyle = e.side === "player" ? "#8ab4d4" : "#d48a8a";
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.type === "pillbox" ? 10 : 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.4)";
-      ctx.stroke();
+      const justFired = e.fireCooldown > 0.04;
+      drawEmplacementSprite(ctx, e, justFired);
 
       ctx.strokeStyle = e.side === "player" ? "rgba(138,180,212,0.35)" : "rgba(212,138,138,0.35)";
       ctx.lineWidth = 1;
@@ -163,70 +159,24 @@ export class Renderer {
   private drawPlatoons(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (const p of game.platoons) {
       if (p.strength <= 0 || p.state === "reserve") continue;
-      this.drawPlatoon(ctx, p, game.selectedPlatoons.includes(p.id));
+      drawPlatoonSprite(ctx, p, game.selectedPlatoons.includes(p.id));
     }
-  }
-
-  private drawPlatoon(ctx: CanvasRenderingContext2D, p: Platoon, selected: boolean): void {
-    const w = 28;
-    const h = 14;
-    const x = p.x - w / 2;
-    const y = p.y - h / 2;
-
-    ctx.fillStyle =
-      p.side === "player"
-        ? p.state === "crossing"
-          ? "#6ca8e8"
-          : p.state === "enemy_trench"
-            ? "#4a8ad4"
-            : "#5a90b8"
-        : p.state === "crossing"
-          ? "#e89090"
-          : "#c87070";
-
-    if (p.state === "routing") ctx.globalAlpha = 0.4;
-    ctx.fillRect(x, y, w, h);
-    if (selected) {
-      ctx.strokeStyle = "#ffe066";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
-    }
-
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 10px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillText(String(Math.ceil(p.strength)), p.x, p.y + 4);
-    ctx.textAlign = "left";
-    ctx.globalAlpha = 1;
   }
 
   private drawEffects(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (const t of game.events.tracers) {
-      ctx.strokeStyle = t.side === "player" ? "rgba(255,255,120,0.7)" : "rgba(255,120,80,0.7)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(t.x1, t.y1);
-      ctx.lineTo(t.x2, t.y2);
-      ctx.stroke();
+      drawTracerLine(ctx, t.x1, t.y1, t.x2, t.y2, t.side);
     }
 
     for (const i of game.events.impacts) {
-      const alpha = i.timer / 0.6;
-      ctx.fillStyle = `rgba(80,50,30,${alpha * 0.6})`;
-      ctx.beginPath();
-      ctx.arc(i.x, i.y, i.radius * (1.2 - alpha * 0.3), 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = `rgba(255,160,60,${alpha})`;
-      ctx.stroke();
+      drawShellImpact(ctx, i);
     }
 
     for (const c of game.events.casualties) {
       const alpha = c.timer / 1.2;
-      ctx.fillStyle = c.side === "player" ? `rgba(100,160,255,${alpha})` : `rgba(255,100,100,${alpha})`;
-      ctx.font = "9px system-ui";
-      ctx.fillText(CAUSE_LABEL[c.cause], c.x + 8, c.y - 8 * alpha);
+      ctx.fillStyle = c.side === "player" ? `rgba(100,160,255,${alpha * 0.6})` : `rgba(255,100,100,${alpha * 0.6})`;
       ctx.beginPath();
-      ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y, 3 + (1 - alpha) * 2, 0, Math.PI * 2);
       ctx.fill();
     }
   }

@@ -1,33 +1,37 @@
 # Trench Command — Roadmap
 
-**Current:** v0.1 — greybox prototype, full front visible, touch controls, 3 batteries, MGs, AI assaults.
+**Current:** v0.2 — audio, canvas sprites, mobile-ready architecture. v0.1 was greybox prototype.
 
 ---
 
-## v0.2 — Feel & feedback
+## v0.2 — Feel & feedback ✅ (in progress / shipped baseline)
 
 Goal: the game *sounds* and *reads* like a battle, not a diagram.
 
 ### Audio
-- [ ] Looping background music (period-appropriate, low intensity; duck under SFX)
-- [ ] MG burst SFX (sustained fire into NML)
-- [ ] Rifle volleys / trench crackle (scaled by intensity)
-- [ ] Assault whistle (on sector advance / crossing order)
-- [ ] Sector captured — cheers / horn
-- [ ] Sector lost — alarm / retreat calls
-- [ ] Artillery: aim tone, shell whistle, impact burst (per battery or pooled)
-- [ ] UI taps (optional subtle clicks)
-- [ ] Volume sliders in pause menu
+- [x] Looping background music (procedural ambient; replace with OGG in `public/audio/`)
+- [x] MG burst SFX
+- [x] Rifle volleys (rate-limited from combat events)
+- [x] Assault whistle (sector advance)
+- [x] Sector captured — cheers / horn
+- [x] Sector lost — alarm
+- [x] Artillery: aim tone + impact burst
+- [x] Volume sliders + mute toggles (HUD)
+- [ ] Replace procedural SFX with licensed asset files
+- [ ] UI tap sounds
 
 ### Visual polish (still 2D)
-- [ ] Sprite sheets for platoons (idle, moving, fighting, routing)
-- [ ] MG and pillbox sprites with muzzle flash
-- [ ] Shell impact sprites + brief crater decal
-- [ ] Tracer / bullet wisps (already stubbed — tie to sprites)
-- [ ] Trench parapet tiles per sector (repeatable art, not full redraw)
+- [x] Canvas sprites for platoons (helmet, rifle, strength badge)
+- [x] MG and pillbox sprites with muzzle flash
+- [x] Shell impact animation (flash, ring, debris)
+- [x] Tracer lines
+- [x] Trench parapet tiles
+- [ ] PNG sprite atlas swap (`public/sprites/`)
 - [ ] Sector strip button art pass
 
-### UX
+### UX / mobile
+- [x] Safe-area / viewport-fit for phones
+- [x] `docs/ANDROID.md` — Capacitor plan
 - [ ] Brief tutorial overlay (first launch)
 - [ ] Assault / artillery status toasts on map
 
