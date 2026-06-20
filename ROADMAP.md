@@ -1,8 +1,8 @@
 # Trench Command — Roadmap
 
-**Current:** v0.6 Phase 3 — movable MGs.
+**Current:** v0.6 Phase 4 — combat polish complete.
 
-**Next:** Phase 4 polish, or Phase 2b — enemy effectiveness + AI.
+**Next:** v0.4 campaign ladder, or Phase 2b — enemy effectiveness + AI.
 
 ---
 
@@ -50,11 +50,11 @@ Do **not** bundle 2b with Phase 2 player implementation.
 - [x] **Up to 3 MGs per sector** — staggered slots like platoons; pool unchanged on move
 - [x] **MG line forward / troop line back** — easier tap selection
 
-### v0.6 Phase 4 — Combat polish
+### v0.6 Phase 4 — Combat polish ✅
 
-- [ ] Tune rifle vs melee overlap
-- [ ] Optional effectiveness badge on sprites
-- [ ] Status toasts
+- [x] **Combat tuning** — rifle DPS 4.5, melee DPS 9, approach defender edge 1.12×
+- [x] **Status toasts** — assault, arty, MG move, sector capture/loss, barrage
+- [x] **Effectiveness badge** — optional in settings (on by default)
 
 ### Then v0.4 — Campaign ladder
 

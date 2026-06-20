@@ -12,6 +12,13 @@ export const MAX_MG_PER_SECTOR = 3;
 /** Seconds before the same MG can relocate again. */
 export const MG_MOVE_COOLDOWN_SEC = 15;
 
+/** Defender edge when invaders are still moving along the trench (not in bay). */
+export const DEFENDER_APPROACH_ADVANTAGE = 1.12;
+
+/** Phase 4 — combat feel */
+export const TRENCH_MELEE_DPS = 9;
+export const TRENCH_RIFLE_DPS = 4.5;
+
 /** Seconds between shell recovery when a battery is idle. */
 export const ARTY_SHELL_REGEN_SEC = 8;
 

@@ -6,6 +6,7 @@ import type {
   InteractionMode,
   Platoon,
   Sector,
+  SectorController,
   ShellImpact,
   SoundCue,
   Tracer,
@@ -72,8 +73,9 @@ import {
   trackAssaultEffectivenessEvents,
 } from "./effectiveness";
 import { queueSound } from "../audio/AudioDirector";
-import type { MissionStats } from "../app/MissionStats";
-import { createMissionStats, sampleCasualtyHistory } from "../app/MissionStats";
+import type { GameToast } from "../app/Toasts";
+import { pushToast, tickToasts, toastBarrageSectors, toastSectorControlChanges } from "../app/Toasts";
+import { createMissionStats, sampleCasualtyHistory, type MissionStats } from "../app/MissionStats";
 import type { AIDifficulty } from "../app/Difficulty";
 import { getAIProfile } from "../app/Difficulty";
 import { createSectors, sectorFromX, type MoveTapZone } from "./battlefield";
@@ -82,6 +84,7 @@ export interface NewGameOptions {
   aiDifficulty?: AIDifficulty;
   campaignLevel?: number;
   unlimitedResources?: boolean;
+  showEffectivenessBadge?: boolean;
 }
 
 export type GamePhase = "playing" | "victory" | "defeat";
@@ -114,18 +117,24 @@ export interface GameState {
   mgPoolMax: number;
   unlimitedResources: boolean;
   assaultActivePrev: Map<string, boolean>;
+  toasts: GameToast[];
+  prevSectorControllers: SectorController[];
+  barrageToastSectors: Set<number>;
+  showEffectivenessBadge: boolean;
 }
 
 export function createGame(options: NewGameOptions = {}): GameState {
   const aiDifficulty = options.aiDifficulty ?? "balanced";
   const campaignLevel = options.campaignLevel ?? 1;
   const unlimitedResources = options.unlimitedResources ?? false;
+  const showEffectivenessBadge = options.showEffectivenessBadge ?? true;
   const aiProfile = getAIProfile(aiDifficulty, campaignLevel);
   const platoons = [...createPlatoons("player"), ...createPlatoons("enemy")];
   layoutAllPlatoons(platoons);
+  const sectors = createSectors();
   return {
     platoons,
-    sectors: createSectors(),
+    sectors,
     emplacements: [...seedPlayerEmplacements(), ...seedEnemyEmplacements()],
     playerBatteries: createPlayerBatteries(),
     enemyBatteries: createEnemyBatteries(),
@@ -151,6 +160,10 @@ export function createGame(options: NewGameOptions = {}): GameState {
     mgPoolMax: MG_POOL_START,
     unlimitedResources,
     assaultActivePrev: new Map(),
+    toasts: [],
+    prevSectorControllers: sectors.map((s) => s.controller),
+    barrageToastSectors: new Set(),
+    showEffectivenessBadge,
   };
 }
 
@@ -240,6 +253,7 @@ export function moveSelectedMgToSector(game: GameState, sector: number): boolean
   const ok = movePlayerMgToSector(game.emplacements, game.selectedEmplacementId, sector);
   if (ok) {
     game.selectedSector = sector;
+    pushToast(game, `MG relocated to sector ${sector + 1}`, "info");
     clearSelection(game);
   }
   return ok;
@@ -363,7 +377,10 @@ export function playerSectorDoubleClick(game: GameState, sector: number): void {
   if (game.phase !== "playing") return;
   game.selectedSector = sector;
   const launched = playerAssault(game, sector);
-  if (launched) queueSound(game, { type: "whistle" });
+  if (launched) {
+    queueSound(game, { type: "whistle" });
+    pushToast(game, `Assault on sector ${sector + 1}`, "good");
+  }
   moveStagingToFront(game.platoons, sector, "player");
   layoutAllPlatoons(game.platoons);
   clearSelection(game);
@@ -403,6 +420,7 @@ export function handleArtilleryTap(game: GameState, x: number, y: number): "fire
   if (active) {
     stopBattery(active);
     game.artyPreview = null;
+    pushToast(game, `Cease fire — sector ${sector + 1}`, "info");
     return "stopped";
   }
 
@@ -415,6 +433,7 @@ export function handleArtilleryTap(game: GameState, x: number, y: number): "fire
   orderBatteryFire(battery, artyZoneForSector(sector));
   queueSound(game, { type: "arty_aim" });
   game.artyPreview = null;
+  pushToast(game, `Battery bracketing sector ${sector + 1}`, "info");
   return "fired";
 }
 
@@ -453,6 +472,10 @@ export function tick(game: GameState, dt: number): void {
   tickNmlEncounters(game.platoons, dt, game.events, game.stats);
   tickHomeTrenchRelief(game.platoons, game.assaults);
   tickPlatoonMovement(game.platoons, dt, game.sectors);
+  toastSectorControlChanges(
+    game,
+    game.sectors.map((s) => s.controller),
+  );
   tickEmplacementCapture(game.emplacements, game.platoons);
   tickEmplacements(game.emplacements, game.platoons, dt, game.events, game.stats);
   tickTrenchFire(game.platoons, dt, game.events, game.stats);
@@ -472,7 +495,9 @@ export function tick(game: GameState, dt: number): void {
   }
   trackAssaultEffectivenessEvents(game.platoons, game.assaults, game.assaultActivePrev);
   const barrage = sectorsUnderBarrage([...game.playerBatteries, ...game.enemyBatteries]);
+  toastBarrageSectors(game, barrage);
   tickPlayerEffectiveness(game.platoons, dt, barrage);
+  tickToasts(game, dt);
 
   game.assaults = game.assaults.filter((a) => {
     return a.active || game.time - dt < 120;

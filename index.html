@@ -45,6 +45,9 @@
             <div class="settings-row">
               <label><input type="checkbox" id="setting-unlimited" /> Unlimited resources (testing)</label>
             </div>
+            <div class="settings-row">
+              <label><input type="checkbox" id="setting-eff-badge" checked /> Show effectiveness on platoons</label>
+            </div>
             <button id="btn-settings-close" class="btn">Done</button>
           </div>
           <div id="panel-credits" class="menu-panel hidden">
@@ -80,6 +83,7 @@
         </div>
         <div id="map-stack">
           <canvas id="game-canvas"></canvas>
+          <div id="game-toasts" class="game-toasts" aria-live="polite"></div>
           <div id="casualty-overlay" class="casualty-overlay hidden">
             <div class="casualty-panel">
               <h2>Casualties</h2>

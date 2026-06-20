@@ -67,6 +67,7 @@ export function bindMenuSettings(audio: AudioManager, settings: GameSettings, on
   const sfxMute = document.getElementById("menu-sfx-mute") as HTMLInputElement;
   const hintsToggle = document.getElementById("setting-hints") as HTMLInputElement;
   const unlimitedToggle = document.getElementById("setting-unlimited") as HTMLInputElement;
+  const effBadgeToggle = document.getElementById("setting-eff-badge") as HTMLInputElement;
 
   const sync = (): void => {
     const a = audio.getSettings();
@@ -76,6 +77,7 @@ export function bindMenuSettings(audio: AudioManager, settings: GameSettings, on
     sfxMute.checked = !a.sfxEnabled;
     hintsToggle.checked = settings.showControlHints;
     unlimitedToggle.checked = settings.unlimitedResources;
+    effBadgeToggle.checked = settings.showEffectivenessBadge;
   };
 
   musicVol.addEventListener("input", () => audio.updateSettings({ musicVolume: Number(musicVol.value) / 100 }));
@@ -88,6 +90,10 @@ export function bindMenuSettings(audio: AudioManager, settings: GameSettings, on
   });
   unlimitedToggle.addEventListener("change", () => {
     settings.unlimitedResources = unlimitedToggle.checked;
+    onSettingsChange({ ...settings });
+  });
+  effBadgeToggle.addEventListener("change", () => {
+    settings.showEffectivenessBadge = effBadgeToggle.checked;
     onSettingsChange({ ...settings });
   });
 

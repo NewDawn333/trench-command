@@ -190,7 +190,7 @@ export class Renderer {
   private drawPlatoons(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (const p of game.platoons) {
       if (p.strength <= 0 || p.state === "reserve") continue;
-      drawPlatoonSprite(ctx, p, game.selectedPlatoons.includes(p.id));
+      drawPlatoonSprite(ctx, p, game.selectedPlatoons.includes(p.id), game.showEffectivenessBadge);
     }
   }
 

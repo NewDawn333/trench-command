@@ -8,7 +8,7 @@ import type {
   Side,
   Tracer,
 } from "../types";
-import { ARTY_SHELL_REGEN_SEC } from "./ResourceConfig";
+import { ARTY_SHELL_REGEN_SEC, DEFENDER_APPROACH_ADVANTAGE, TRENCH_MELEE_DPS, TRENCH_RIFLE_DPS } from "./ResourceConfig";
 import type { MissionStats } from "../app/MissionStats";
 import { recordCasualtyDamage } from "../app/MissionStats";
 import { FIRE_RANGE, LAYOUT } from "../types";
@@ -213,7 +213,7 @@ export function tickTrenchFire(
       return dist < bestDist ? p : best;
     });
 
-    const rate = 4 * platoonCombatMult(defender);
+    const rate = TRENCH_RIFLE_DPS * platoonCombatMult(defender);
     const dmg = rate * dt * (defender.strength / defender.maxStrength);
     applyDamage(target, dmg, dmg * 0.15, stats);
     if (Math.random() < dt * 3) {
@@ -230,7 +230,7 @@ export function tickTrenchMelee(platoons: Platoon[], dt: number, events: CombatE
   }
 }
 
-const DEFENDER_APPROACH_ADVANTAGE = 1.1;
+const DEFENDER_APPROACH_MULT = DEFENDER_APPROACH_ADVANTAGE;
 
 /**
  * Trench control at one sector — mutual attrition, one exchange per sector (no per-platoon stacking).
@@ -248,12 +248,12 @@ function resolveTrenchControlFight(
   if (!contact) return;
 
   const { defenders, invaders, invadersInBay } = contact;
-  const defenderMult = invadersInBay.length > 0 ? 1.0 : DEFENDER_APPROACH_ADVANTAGE;
+  const defenderMult = invadersInBay.length > 0 ? 1.0 : DEFENDER_APPROACH_MULT;
 
   const iStr = invaders.reduce((a, p) => a + p.strength, 0);
   const dStr = defenders.reduce((a, p) => a + p.strength, 0) * defenderMult;
   const total = Math.max(iStr + dStr, 1);
-  const baseDmg = 11 * dt;
+  const baseDmg = TRENCH_MELEE_DPS * dt;
 
   for (const p of invaders) {
     const dmg = ((baseDmg * (dStr / total)) / invaders.length) * platoonCombatMult(p);

@@ -8,6 +8,7 @@ export interface GameSettings {
   aiDifficulty: AIDifficulty;
   /** Bypass call-up regen, MG pool, and arty regen limits (balance testing). */
   unlimitedResources: boolean;
+  showEffectivenessBadge: boolean;
 }
 
 export interface HighScores {
@@ -20,6 +21,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   showControlHints: true,
   aiDifficulty: "balanced",
   unlimitedResources: false,
+  showEffectivenessBadge: true,
 };
 
 const DEFAULT_SCORES: HighScores = {

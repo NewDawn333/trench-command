@@ -129,6 +129,47 @@ body {
   width: 100%;
 }
 
+.game-toasts {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  max-width: min(420px, 90%);
+}
+
+.game-toast {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(20, 24, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.game-toast-good {
+  border-color: rgba(120, 200, 120, 0.5);
+  color: #b8e8b8;
+}
+
+.game-toast-warn {
+  border-color: rgba(220, 160, 80, 0.55);
+  color: #f0d090;
+}
+
+.game-toast-info {
+  border-color: rgba(140, 180, 220, 0.45);
+  color: #c8dce8;
+}
+
 .casualty-overlay {
   position: absolute;
   inset: 0;

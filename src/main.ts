@@ -17,6 +17,7 @@ import {
 import { bindMenuSettings, bindDifficultyPicker, renderMissionEnd, updateMenuHighScores } from "./app/Menu";
 import { applyControlHintsVisible, showScreen, type AppScreen } from "./app/screens";
 import { drawCasualtyChart } from "./app/CasualtyChart";
+import { renderToasts } from "./app/Toasts";
 
 let game: GameState = createGame();
 let baseline: MissionBaseline = captureBaseline(game);
@@ -26,6 +27,7 @@ let missionEnded = false;
 
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 const casualtyChartCanvas = document.getElementById("casualty-chart") as HTMLCanvasElement;
+const toastContainer = document.getElementById("game-toasts");
 const renderer = new Renderer(canvas);
 const input = new InputHandler(canvas, renderer, () => game);
 const audioDirector = new AudioDirector(audioManager);
@@ -46,6 +48,7 @@ function refreshHUD(): void {
 function applySettings(): void {
   saveGameSettings(appSettings);
   applyControlHintsVisible(appSettings.showControlHints);
+  if (screen === "game") game.showEffectivenessBadge = appSettings.showEffectivenessBadge;
 }
 
 function hideOverlay(): void {
@@ -82,6 +85,7 @@ function startNewGame(): void {
     aiDifficulty: appSettings.aiDifficulty,
     campaignLevel: 1,
     unlimitedResources: appSettings.unlimitedResources,
+    showEffectivenessBadge: appSettings.showEffectivenessBadge,
   });
   baseline = captureBaseline(game);
   missionEnded = false;
@@ -170,6 +174,7 @@ function loop(now: number): void {
       }
     }
     renderer.render(game);
+    renderToasts(toastContainer, game.toasts);
     if (game.showCasualtyChart) {
       drawCasualtyChart(casualtyChartCanvas, game.stats.history, game.time);
     }

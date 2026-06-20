@@ -6,6 +6,7 @@ export function drawPlatoonSprite(
   ctx: CanvasRenderingContext2D,
   p: Platoon,
   selected: boolean,
+  showEffectivenessBadge = true,
 ): void {
   const isPlayer = p.side === "player";
   const facing = isPlayer ? 1 : -1;
@@ -71,7 +72,7 @@ export function drawPlatoonSprite(
   ctx.textAlign = "center";
   ctx.fillText(String(Math.ceil(p.strength)), 0, -14);
 
-  if (isPlayer && Math.abs(p.effectiveness - 100) > 2) {
+  if (showEffectivenessBadge && isPlayer && Math.abs(p.effectiveness - 100) > 2) {
     ctx.fillStyle = p.effectiveness >= 100 ? "#9f9" : p.effectiveness < 50 ? "#f99" : "#dd9";
     ctx.font = "8px system-ui";
     ctx.fillText(`${Math.round(p.effectiveness)}%`, 0, -24);
