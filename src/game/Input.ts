@@ -89,7 +89,9 @@ export class InputHandler {
       !!p &&
       p.side === "player" &&
       p.strength > 0 &&
-      (p.state === "front" || (p.state === "enemy_trench" && isInvader(p)))
+      (p.state === "front" ||
+        p.state === "staging" ||
+        (p.state === "enemy_trench" && isInvader(p)))
     );
   }
 

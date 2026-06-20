@@ -216,6 +216,10 @@ export function selectPlatoonGroup(game: GameState, platoonId: string): void {
     game.selectedPlatoons = game.platoons
       .filter((q) => q.side === "player" && q.sector === p.sector && q.state === "front" && q.strength > 0)
       .map((q) => q.id);
+  } else if (p.state === "staging") {
+    game.selectedPlatoons = game.platoons
+      .filter((q) => q.side === "player" && q.sector === p.sector && q.state === "staging" && q.strength > 0)
+      .map((q) => q.id);
   } else if (p.state === "enemy_trench" && isInvader(p)) {
     game.selectedPlatoons = game.platoons
       .filter(

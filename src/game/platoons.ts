@@ -1,6 +1,6 @@
 import type { Platoon, PlatoonState, Side } from "../types";
-import { CONFIG } from "../types";
-import { platoonFrontY, spreadXInSector, stagingY } from "./battlefield";
+import { CONFIG, LAYOUT } from "../types";
+import { platoonFrontY, sectorCenterX, spreadXInSector, stagingY } from "./battlefield";
 import { initialEffectiveness } from "./effectiveness";
 
 let nextId = 1;
@@ -74,6 +74,11 @@ export function callUpPlatoon(platoons: Platoon[], sector: number): Platoon {
   const p = createPlatoon("player", sector, "staging");
   p.effectiveness = initialEffectiveness("player", "staging");
   p.stagingTimer = 0;
+  // Enter from the reserve strip below staging, then march up into the sector row.
+  p.x = sectorCenterX(sector);
+  p.y = LAYOUT.playerReserveY;
+  p.targetX = p.x;
+  p.targetY = stagingY("player");
   platoons.push(p);
   return p;
 }

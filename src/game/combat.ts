@@ -13,7 +13,7 @@ import type { MissionStats } from "../app/MissionStats";
 import { recordCasualtyDamage } from "../app/MissionStats";
 import { FIRE_RANGE, LAYOUT } from "../types";
 import { sectorCenterX, sectorFromX } from "./battlefield";
-import { adjacentSectorsByX, effectiveSector } from "./layout";
+import { adjacentSectorsByX, effectiveSector, inLateralTrenchRange } from "./layout";
 import { isCombatReady, isInvader } from "./platoons";
 import { effectivenessLossFromDamage, platoonCombatMult } from "./effectiveness";
 
@@ -145,7 +145,11 @@ interface TrenchMeleeContact {
   invadersInBay: Platoon[];
 }
 
-/** Active bayonet fight in a sector — invaders physically in bay or closing on it along the trench. */
+function invaderWithinMeleeRange(invader: Platoon, defenders: Platoon[]): boolean {
+  return defenders.some((d) => inLateralTrenchRange(invader.x, d.x));
+}
+
+/** Active bayonet fight in a sector — invaders in bay or closing along the trench within rifle-melee reach. */
 function trenchMeleeContact(
   platoons: Platoon[],
   sector: number,
@@ -160,10 +164,11 @@ function trenchMeleeContact(
 
   const invaders = platoons.filter((p) => {
     if (p.side !== invaderSide || !isInvader(p) || !isCombatReady(p)) return false;
+    if (!invaderWithinMeleeRange(p, defenders)) return false;
     const bay = effectiveSector(p);
     if (bay === sector) return true;
     if (Math.abs(bay - sector) !== 1) return false;
-    return p.sector === sector || sectorFromX(p.targetX) === sector;
+    return sectorFromX(p.targetX) === sector || (p.sector === sector && bay !== sector);
   });
 
   if (invaders.length === 0) return null;

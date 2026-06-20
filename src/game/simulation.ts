@@ -37,7 +37,7 @@ export function createAIState(profile: AIProfile): AIState {
   return {
     massingSector: null,
     massTimer: profile.massingDurationMin + Math.random() * (profile.massingDurationMax - profile.massingDurationMin),
-    assaultCooldown: profile.assaultCooldownMin * 0.6,
+    assaultCooldown: profile.assaultCooldownMin * 0.35,
     artyCooldown: profile.artyCooldownMin * 0.5,
     invaderSpreadTimer: profile.invaderSpreadMin,
     profile,
@@ -169,6 +169,11 @@ export function tickAI(
       p.sector = sector;
       movePlatoonToStaging(p);
     }
+
+    // Build front-line mass during staging — assault threshold counts front troops only.
+    if (Math.random() < dt * profile.aggression * 0.55) {
+      moveStagingToFront(platoons, sector, "enemy");
+    }
   }
 
   if (ai.artyCooldown <= 0) {
@@ -194,14 +199,14 @@ export function tickAI(
   }
 
   if (ai.assaultCooldown <= 0 && sector !== null) {
+    moveStagingToFront(platoons, sector, "enemy");
     const frontStr = totalStrength(platoonsInSector(platoons, "enemy", sector, ["front"]));
-    let threshold = DEV_MODE ? CONFIG.platoonSize : CONFIG.platoonSize * 3;
+    let threshold = DEV_MODE ? CONFIG.platoonSize : CONFIG.platoonSize * 1.75;
     threshold *= profile.assaultThresholdMult;
     if (sectorHasEnemyPillbox(emplacements, sector)) threshold *= profile.pillboxAssaultPenalty;
 
     if (frontStr >= threshold) {
       launchAssault(platoons, "enemy", sector, assaults);
-      moveStagingToFront(platoons, sector, "enemy");
       ai.assaultCooldown =
         profile.assaultCooldownMin +
         Math.random() * (profile.assaultCooldownMax - profile.assaultCooldownMin);
@@ -213,8 +218,8 @@ export function tickAI(
     if (s.controller === "player") {
       const enemies = platoonsInSector(platoons, "enemy", s.index, ["staging", "front", "reserve"]);
       if (enemies.length > 0 && ai.assaultCooldown <= 5 && Math.random() < dt * profile.counterAttackRate) {
-        launchAssault(platoons, "enemy", s.index, assaults);
         moveStagingToFront(platoons, s.index, "enemy");
+        launchAssault(platoons, "enemy", s.index, assaults);
         ai.assaultCooldown = profile.assaultCooldownMin * 0.85;
       }
     }
