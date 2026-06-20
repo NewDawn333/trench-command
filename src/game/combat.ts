@@ -135,6 +135,52 @@ export function tickEmplacements(
   }
 }
 
+interface TrenchMeleeContact {
+  defenders: Platoon[];
+  invaders: Platoon[];
+  invadersInBay: Platoon[];
+}
+
+/** Active bayonet fight in a sector — invaders physically in bay or closing on it along the trench. */
+function trenchMeleeContact(
+  platoons: Platoon[],
+  sector: number,
+  invaderSide: Side,
+): TrenchMeleeContact | null {
+  const defenderSide: Side = invaderSide === "player" ? "enemy" : "player";
+
+  const defenders = platoons.filter(
+    (p) => p.side === defenderSide && p.sector === sector && p.state === "front" && isCombatReady(p),
+  );
+  if (defenders.length === 0) return null;
+
+  const invaders = platoons.filter((p) => {
+    if (p.side !== invaderSide || !isInvader(p) || !isCombatReady(p)) return false;
+    const bay = effectiveSector(p);
+    if (bay === sector) return true;
+    if (Math.abs(bay - sector) !== 1) return false;
+    return p.sector === sector || sectorFromX(p.targetX) === sector;
+  });
+
+  if (invaders.length === 0) return null;
+
+  const invadersInBay = invaders.filter((p) => effectiveSector(p) === sector);
+  return { defenders, invaders, invadersInBay };
+}
+
+export function sectorHasTrenchMelee(platoons: Platoon[], sector: number): boolean {
+  return (
+    trenchMeleeContact(platoons, sector, "player") !== null ||
+    trenchMeleeContact(platoons, sector, "enemy") !== null
+  );
+}
+
+/** True if this front-line platoon is in a sector with an active trench bayonet fight. */
+function defenderEngagedInTrenchMelee(p: Platoon, platoons: Platoon[]): boolean {
+  if (p.state !== "front" || !isCombatReady(p)) return false;
+  return sectorHasTrenchMelee(platoons, p.sector);
+}
+
 export function tickTrenchFire(
   platoons: Platoon[],
   dt: number,
@@ -144,6 +190,8 @@ export function tickTrenchFire(
   const defenders = platoons.filter((p) => isCombatReady(p) && p.state === "front");
 
   for (const defender of defenders) {
+    if (defenderEngagedInTrenchMelee(defender, platoons)) continue;
+
     const yBand = trenchRifleYBand(defender.side);
     const enemies = platoons.filter(
       (p) =>
@@ -192,30 +240,10 @@ function resolveTrenchControlFight(
   sector: number,
   invaderSide: Side,
 ): void {
-  const defenderSide: Side = invaderSide === "player" ? "enemy" : "player";
+  const contact = trenchMeleeContact(platoons, sector, invaderSide);
+  if (!contact) return;
 
-  const defenders = platoons.filter(
-    (p) => p.side === defenderSide && p.sector === sector && p.state === "front" && isCombatReady(p),
-  );
-  if (defenders.length === 0) return;
-
-  const invadersInBay = platoons.filter(
-    (p) => p.side === invaderSide && effectiveSector(p) === sector && isInvader(p) && isCombatReady(p),
-  );
-
-  const invadersApproaching = platoons.filter(
-    (p) =>
-      p.side === invaderSide &&
-      isInvader(p) &&
-      isCombatReady(p) &&
-      p.sector === sector &&
-      effectiveSector(p) !== sector &&
-      Math.abs(effectiveSector(p) - sector) === 1,
-  );
-
-  const invaders = [...invadersInBay, ...invadersApproaching];
-  if (invaders.length === 0) return;
-
+  const { defenders, invaders, invadersInBay } = contact;
   const defenderMult = invadersInBay.length > 0 ? 1.0 : DEFENDER_APPROACH_ADVANTAGE;
 
   const iStr = invaders.reduce((a, p) => a + p.strength, 0);
