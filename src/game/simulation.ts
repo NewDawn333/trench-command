@@ -1,7 +1,8 @@
 import type { AssaultOrder, FixedEmplacement, Platoon, Sector, Side } from "../types";
 import { CONFIG, DEV_MODE, LAYOUT, PLATOON_MOVE_SPEED } from "../types";
 import type { AIProfile } from "../app/Difficulty";
-import { frontTrenchY } from "./battlefield";
+import { PLAYER_ASSAULT_MIN_STRENGTH } from "./ResourceConfig";
+import { platoonFrontY } from "./battlefield";
 import {
   beginCrossing,
   beginReliefCrossing,
@@ -19,6 +20,7 @@ import { destroyEmplacementsInSector } from "./emplacements";
 import { layoutAllPlatoons } from "./layout";
 import type { ArtilleryBattery } from "../types";
 import { pickEnemyArtyZone, pickMassSector, sectorHasEnemyPillbox } from "./aiTargeting";
+import { applySectorMomentumGains, platoonMoveMult } from "./effectiveness";
 
 let assaultCounter = 1;
 
@@ -48,6 +50,19 @@ export function moveStagingToFront(platoons: Platoon[], sector: number, side: Si
   return staging.length;
 }
 
+export function assaultMinStrength(side: Side): number {
+  if (DEV_MODE) return 1;
+  return side === "player" ? PLAYER_ASSAULT_MIN_STRENGTH : CONFIG.platoonSize * 2.5;
+}
+
+export function canLaunchAssault(platoons: Platoon[], side: Side, sector: number): boolean {
+  const front = platoonsInSector(platoons, side, sector, ["front"]).filter((p) => p.strength > p.maxStrength * 0.35);
+  const inEnemyTrench = platoonsInSector(platoons, side, sector, ["enemy_trench"]).filter(isInvader);
+  if (front.length === 0 && inEnemyTrench.length === 0) return false;
+  if (front.length === 0) return inEnemyTrench.length > 0;
+  return totalStrength(front) >= assaultMinStrength(side);
+}
+
 export function launchAssault(
   platoons: Platoon[],
   side: Side,
@@ -57,8 +72,7 @@ export function launchAssault(
   const front = platoonsInSector(platoons, side, sector, ["front"]).filter((p) => p.strength > p.maxStrength * 0.35);
   const inEnemyTrench = platoonsInSector(platoons, side, sector, ["enemy_trench"]).filter(isInvader);
 
-  if (front.length === 0 && inEnemyTrench.length === 0) return null;
-  if (!DEV_MODE && totalStrength(front) < CONFIG.platoonSize * 2.5) return null;
+  if (!canLaunchAssault(platoons, side, sector)) return null;
 
   const id = `assault-${assaultCounter++}`;
   const order: AssaultOrder = { id, side, sector, active: true, kind: "assault" };
@@ -180,7 +194,6 @@ export function tickAI(
   }
 
   if (ai.assaultCooldown <= 0 && sector !== null) {
-    moveStagingToFront(platoons, sector, "enemy");
     const frontStr = totalStrength(platoonsInSector(platoons, "enemy", sector, ["front"]));
     let threshold = DEV_MODE ? CONFIG.platoonSize : CONFIG.platoonSize * 3;
     threshold *= profile.assaultThresholdMult;
@@ -188,6 +201,7 @@ export function tickAI(
 
     if (frontStr >= threshold) {
       launchAssault(platoons, "enemy", sector, assaults);
+      moveStagingToFront(platoons, sector, "enemy");
       ai.assaultCooldown =
         profile.assaultCooldownMin +
         Math.random() * (profile.assaultCooldownMax - profile.assaultCooldownMin);
@@ -200,6 +214,7 @@ export function tickAI(
       const enemies = platoonsInSector(platoons, "enemy", s.index, ["staging", "front", "reserve"]);
       if (enemies.length > 0 && ai.assaultCooldown <= 5 && Math.random() < dt * profile.counterAttackRate) {
         launchAssault(platoons, "enemy", s.index, assaults);
+        moveStagingToFront(platoons, s.index, "enemy");
         ai.assaultCooldown = profile.assaultCooldownMin * 0.85;
       }
     }
@@ -281,13 +296,13 @@ export function tickPlatoonMovement(platoons: Platoon[], dt: number, sectors: Se
     const dist = Math.hypot(dx, dy);
 
     if (dist > 2) {
-      const step = Math.min(dist, PLATOON_MOVE_SPEED * dt);
+      const step = Math.min(dist, PLATOON_MOVE_SPEED * dt * platoonMoveMult(p));
       p.x += (dx / dist) * step;
       p.y += (dy / dist) * step;
     } else if (p.state === "crossing") {
       if (isReliefCrossing(p)) {
         p.state = "front";
-        p.y = frontTrenchY(p.side);
+        p.y = platoonFrontY(p.side);
         p.targetY = p.y;
         p.assaultId = null;
       } else {
@@ -342,6 +357,7 @@ function updateSectorControl(platoons: Platoon[], sectors: Sector[]): void {
       s.controller = "contested";
     }
   }
+  applySectorMomentumGains(platoons, sectors);
 }
 
 export function tickEmplacementCapture(emplacements: FixedEmplacement[], platoons: Platoon[]): void {
@@ -396,10 +412,30 @@ export function checkVictory(sectors: Sector[], platoons: Platoon[]): boolean {
   return allCaptured && enemyRemaining.length === 0;
 }
 
-export function checkDefeat(platoons: Platoon[]): boolean {
+/**
+ * Defeat when the enemy holds every sector of the player's trench line —
+ * mirror of victory (player must capture the full enemy line), not merely
+ * an empty friendly trench during an all-out assault.
+ */
+export function checkDefeat(platoons: Platoon[], _sectors: Sector[]): boolean {
   if (DEV_MODE) return false;
-  const playerFront = platoons.filter((p) => p.side === "player" && p.strength > 0 && (p.state === "front" || p.state === "staging"));
-  return playerFront.length === 0;
+
+  for (let i = 0; i < CONFIG.sectorCount; i++) {
+    const playerHolds = platoons.some(
+      (p) =>
+        p.side === "player" &&
+        p.sector === i &&
+        p.strength > 0 &&
+        (p.state === "front" || p.state === "staging"),
+    );
+    if (playerHolds) return false;
+
+    const enemyOccupies = platoons.some(
+      (p) => p.side === "enemy" && p.sector === i && isInvader(p) && p.strength > 0,
+    );
+    if (!enemyOccupies) return false;
+  }
+  return true;
 }
 
 export function tickReplacements(_platoons: Platoon[], _dt: number): number {

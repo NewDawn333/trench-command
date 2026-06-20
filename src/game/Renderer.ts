@@ -1,5 +1,6 @@
 import type { GameState } from "./Game";
 import { mgAvailableForSector, reservesAvailableForSector } from "./Game";
+import { countMgsInSector } from "./emplacements";
 import { CONFIG, LAYOUT } from "../types";
 import { CALL_UP_REGEN_SEC } from "./ResourceConfig";
 import { callUpButtonRect, mgButtonRect, sectorCenterX, sectorWidth } from "./battlefield";
@@ -155,7 +156,24 @@ export class Renderer {
   private drawEmplacements(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (const e of game.emplacements) {
       const justFired = e.fireCooldown > 0.04;
+      const selected = e.id === game.selectedEmplacementId;
       drawEmplacementSprite(ctx, e, justFired);
+
+      if (selected) {
+        ctx.strokeStyle = "#ffe066";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, 16, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (e.side === "player" && e.type === "mg" && e.moveCooldown > 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.font = "8px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(`${Math.ceil(e.moveCooldown)}s`, e.x, e.y - 20);
+        ctx.textAlign = "left";
+      }
 
       ctx.strokeStyle = e.side === "player" ? "rgba(138,180,212,0.35)" : "rgba(212,138,138,0.35)";
       ctx.lineWidth = 1;
@@ -240,8 +258,8 @@ export class Renderer {
   private drawMgButtons(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (let i = 0; i < CONFIG.sectorCount; i++) {
       const r = mgButtonRect(i);
+      const mgCount = countMgsInSector(game.emplacements, "player", i);
       const available = mgAvailableForSector(game, i);
-      const hasMg = game.emplacements.some((e) => e.side === "player" && e.sector === i && e.type === "mg");
 
       ctx.fillStyle = available ? "#2e3848" : "#252830";
       ctx.strokeStyle = available ? "#5a7898" : "#3a4048";
@@ -255,7 +273,8 @@ export class Renderer {
       ctx.font = "10px system-ui";
       ctx.textAlign = "center";
       let label = "+ MG";
-      if (hasMg) label = "MG";
+      if (mgCount >= 3) label = "MG full";
+      else if (mgCount > 0) label = available ? `+ MG (${mgCount}/3)` : `MG ${mgCount}/3`;
       else if (!available && !game.unlimitedResources) {
         label = game.mgPool <= 0 ? "No MGs" : "MG";
       } else if (!game.unlimitedResources && game.mgPool > 0) {

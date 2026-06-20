@@ -70,6 +70,13 @@ export function drawPlatoonSprite(
   ctx.font = "bold 9px system-ui";
   ctx.textAlign = "center";
   ctx.fillText(String(Math.ceil(p.strength)), 0, -14);
+
+  if (isPlayer && Math.abs(p.effectiveness - 100) > 2) {
+    ctx.fillStyle = p.effectiveness >= 100 ? "#9f9" : p.effectiveness < 50 ? "#f99" : "#dd9";
+    ctx.font = "8px system-ui";
+    ctx.fillText(`${Math.round(p.effectiveness)}%`, 0, -24);
+  }
+
   ctx.textAlign = "left";
   ctx.restore();
 }

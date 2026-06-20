@@ -2,22 +2,26 @@ import type { GameState } from "./Game";
 import {
   applySelectedMove,
   callUpTroops,
+  clearSelection,
   closeCasualtyChart,
   getArtilleryStatus,
   getStatusText,
   handleArtilleryTap,
+  moveSelectedMgToSector,
   placeMgInSector,
   playerSectorDoubleClick,
   returnToSelectMode,
   selectPlatoonGroup,
   selectPlatoonSingle,
+  selectPlayerMg,
   setMode,
   stopArtilleryAtPoint,
   toggleCasualtyChart,
   togglePause,
 } from "./Game";
 import type { Renderer } from "./Renderer";
-import { isInNml, isOnSectorStrip, moveTapZoneAt, sectorFromX, sectorStripAction } from "./battlefield";
+import { emplacementLineY, isInNml, isOnSectorStrip, moveTapZoneAt, platoonFrontY, sectorFromX, sectorStripAction } from "./battlefield";
+import { playerMgAtPoint } from "./emplacements";
 import { defaultArtyZoneFromPoint } from "./combat";
 import { isInvader } from "./platoons";
 import type { Platoon } from "../types";
@@ -61,10 +65,15 @@ export class InputHandler {
   }
 
   private platoonAt(game: GameState, x: number, y: number): string | null {
+    const mgLine = emplacementLineY("player");
+    const troopLine = platoonFrontY("player");
+    const tapFavorsMg = Math.abs(y - mgLine) < Math.abs(y - troopLine);
+
     let best: Platoon | null = null;
     let bestDist = Infinity;
     for (const p of game.platoons) {
       if (p.side !== "player" || p.strength <= 0 || p.state === "reserve") continue;
+      if (p.state === "front" && tapFavorsMg) continue;
       const dist = Math.hypot(p.x - x, p.y - y);
       if (dist < 22 && dist < bestDist) {
         best = p;
@@ -174,10 +183,30 @@ export class InputHandler {
       if (platoonId && this.canGroupSelect(game, platoonId)) {
         selectPlatoonGroup(game, platoonId);
       } else if (!platoonId) {
-        playerSectorDoubleClick(game, sectorFromX(x));
+        if (game.selectedEmplacementId) {
+          clearSelection(game);
+        } else {
+          playerSectorDoubleClick(game, sectorFromX(x));
+        }
       } else {
         selectPlatoonSingle(game, platoonId);
       }
+      return;
+    }
+
+    const mg = playerMgAtPoint(game.emplacements, x, y);
+
+    if (game.selectedEmplacementId && moveTapZoneAt(y) === "player_trench") {
+      const sector = sectorFromX(x);
+      if (moveSelectedMgToSector(game, sector)) {
+        this.lastTap = { t: now, x, y };
+        return;
+      }
+    }
+
+    if (mg) {
+      selectPlayerMg(game, mg.id);
+      this.lastTap = { t: now, x, y };
       return;
     }
 

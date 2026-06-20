@@ -15,6 +15,7 @@ import { FIRE_RANGE, LAYOUT } from "../types";
 import { sectorCenterX, sectorFromX } from "./battlefield";
 import { adjacentSectorsByX, effectiveSector } from "./layout";
 import { isCombatReady, isInvader } from "./platoons";
+import { effectivenessLossFromDamage, platoonCombatMult } from "./effectiveness";
 
 /** Y band (inclusive) reachable by trench rifle fire from a side — NML only, no trench-to-trench. */
 function trenchRifleYBand(side: Side): { min: number; max: number } {
@@ -88,11 +89,11 @@ function addTracer(events: CombatEvents, x1: number, y1: number, x2: number, y2:
   events.tracers.push({ x1, y1, x2, y2, timer: 0.15, side });
 }
 
-function applyDamage(p: Platoon, amount: number, moraleHit: number, stats: MissionStats): void {
+function applyDamage(p: Platoon, amount: number, effHitScale: number, stats: MissionStats): void {
   recordCasualtyDamage(stats, p, amount);
   p.strength = Math.max(0, p.strength - amount);
-  p.morale = Math.max(0, p.morale - moraleHit);
-  if (p.strength <= 0 || p.morale < 15) {
+  effectivenessLossFromDamage(p, amount, effHitScale);
+  if (p.strength <= 0 || (p.side === "player" && p.effectiveness <= 0)) {
     p.state = "routing";
   }
 }
@@ -212,7 +213,7 @@ export function tickTrenchFire(
       return dist < bestDist ? p : best;
     });
 
-    const rate = 4;
+    const rate = 4 * platoonCombatMult(defender);
     const dmg = rate * dt * (defender.strength / defender.maxStrength);
     applyDamage(target, dmg, dmg * 0.15, stats);
     if (Math.random() < dt * 3) {
@@ -255,14 +256,14 @@ function resolveTrenchControlFight(
   const baseDmg = 11 * dt;
 
   for (const p of invaders) {
-    const dmg = (baseDmg * (dStr / total)) / invaders.length;
-    applyDamage(p, dmg, dmg * 0.25, stats);
-    if (Math.random() < dt * 3) addCasualty(events, p.x, p.y, "rifle", p.side);
+    const dmg = ((baseDmg * (dStr / total)) / invaders.length) * platoonCombatMult(p);
+    applyDamage(p, dmg, 0.25, stats);
+    if (Math.random() < dt * 3 * platoonCombatMult(p)) addCasualty(events, p.x, p.y, "rifle", p.side);
   }
   for (const p of defenders) {
-    const dmg = (baseDmg * (iStr / total)) / defenders.length;
-    applyDamage(p, dmg, dmg * 0.25, stats);
-    if (Math.random() < dt * 3) addCasualty(events, p.x, p.y, "rifle", p.side);
+    const dmg = ((baseDmg * (iStr / total)) / defenders.length) * platoonCombatMult(p);
+    applyDamage(p, dmg, 0.25, stats);
+    if (Math.random() < dt * 3 * platoonCombatMult(p)) addCasualty(events, p.x, p.y, "rifle", p.side);
   }
   if (Math.random() < dt * 4 && invaders[0] && defenders[0]) {
     addTracer(events, invaders[0].x, invaders[0].y, defenders[0].x, defenders[0].y, invaderSide);
@@ -289,8 +290,8 @@ export function tickNmlEncounters(platoons: Platoon[], dt: number, events: Comba
       const loser = aWins ? b : a;
       const winner = aWins ? a : b;
       const winMargin = Math.abs(aStr - bStr) / Math.max(aStr + bStr, 1);
-      const loserDmg = (14 + winMargin * 30) * dt;
-      const winnerDmg = (4 + winMargin * 8) * dt;
+      const loserDmg = (14 + winMargin * 30) * dt * platoonCombatMult(winner);
+      const winnerDmg = (4 + winMargin * 8) * dt * platoonCombatMult(loser);
 
       applyDamage(loser, loserDmg, loserDmg * 0.5, stats);
       applyDamage(winner, winnerDmg, winnerDmg * 0.25, stats);

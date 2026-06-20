@@ -76,6 +76,7 @@ export function createSectors(): Sector[] {
     width: w,
     controller: "enemy" as const,
     captureProgress: 0,
+    momentumGranted: false,
   }));
 }
 
@@ -85,6 +86,18 @@ export function stagingY(side: Side): number {
 
 export function frontTrenchY(side: Side): number {
   return side === "player" ? LAYOUT.playerTrenchY : LAYOUT.enemyTrenchY;
+}
+
+/** Troop line — slightly back from the parapet (easier to tap vs MGs). */
+export function platoonFrontY(side: Side): number {
+  const base = frontTrenchY(side);
+  return side === "player" ? base + 12 : base - 12;
+}
+
+/** MG line — slightly forward toward no man's land. */
+export function emplacementLineY(side: Side): number {
+  const base = frontTrenchY(side);
+  return side === "player" ? base - 16 : base + 16;
 }
 
 export function enemyTrenchY(): number {

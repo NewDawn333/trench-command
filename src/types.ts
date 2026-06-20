@@ -30,8 +30,10 @@ export interface Platoon {
   y: number;
   targetX: number;
   targetY: number;
-  morale: number;
+  effectiveness: number;
   timeOnFront: number;
+  /** Seconds accumulated in staging (recovery starts after settle). */
+  stagingTimer: number;
   assaultId: string | null;
 }
 
@@ -45,6 +47,8 @@ export interface FixedEmplacement {
   arcStart: number;
   arcEnd: number;
   fireCooldown: number;
+  /** Seconds until this MG can move to another sector (player MGs only). */
+  moveCooldown: number;
 }
 
 export interface ArtilleryBattery {
@@ -102,6 +106,8 @@ export interface Sector {
   width: number;
   controller: SectorController;
   captureProgress: number;
+  /** Surge gain already awarded for current hold of this sector. */
+  momentumGranted: boolean;
 }
 
 export interface AssaultOrder {

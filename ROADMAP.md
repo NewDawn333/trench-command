@@ -1,8 +1,8 @@
 # Trench Command — Roadmap
 
-**Current:** v0.6 Phase 1 — limited resources (call-up regen, arty regen, MG pool).
+**Current:** v0.6 Phase 3 — movable MGs.
 
-**Next:** v0.6 Phase 2 — effectiveness system (constants locked below).
+**Next:** Phase 4 polish, or Phase 2b — enemy effectiveness + AI.
 
 ---
 
@@ -15,9 +15,9 @@
 - [x] **Artillery regen** — **1 shell / 8s** when idle; `ammo/max ↗` in counter
 - [x] **MG pool** — **4** total; one per sector; no regen
 - [x] Settings toggle: **Unlimited resources** (testing)
-- [x] Defeat when no player front/staging platoons remain
+- [x] Defeat when enemy **occupies every player trench sector** (not empty trench during assault)
 
-### v0.6 Phase 2 — Effectiveness (next)
+### v0.6 Phase 2 — Effectiveness ✅
 
 Constants from design review:
 
@@ -26,13 +26,14 @@ Constants from design review:
 | Surge decay (150% → 100%) | **120 seconds** |
 | Headcount effectiveness loss | Only when strength **< 20%** of max |
 | Invader floor in enemy trench | Effectiveness cannot drop **below 50%** from decay |
-| Fresh call-up starting eff | ~70% (implement in Phase 2) |
+| Fresh call-up starting eff | **70%** |
 | Staging recovery | 8s settle, then +4/sec to 100 |
 
-- [ ] Rename `morale` → `effectiveness` (0–150)
-- [ ] Combat/movement multipliers (50–100 flat, 100–150 bonus, 0–50 penalty to 10%)
-- [ ] Loss: idle front, arty barrage, low headcount (<20%)
-- [ ] Gain: staging recovery, repulsed assault, successful assault (+ neighbor), surge decay 120s
+- [x] Rename `morale` → `effectiveness` (0–150)
+- [x] Combat/movement multipliers (50–100 flat, 100–150 bonus, 0–50 penalty to 10%)
+- [x] Loss: idle front, arty barrage, low headcount (<20%)
+- [x] Gain: staging recovery, repulsed assault, successful assault (+ neighbor), surge decay 120s
+- [x] Player-only tick (enemy Phase 2b)
 
 ### v0.6 Phase 2b — Enemy effectiveness (later, two steps)
 
@@ -41,10 +42,13 @@ Constants from design review:
 
 Do **not** bundle 2b with Phase 2 player implementation.
 
-### v0.6 Phase 3 — MG relocation
+### v0.6 Phase 3 — MG relocation ✅
 
-- [ ] Select MG on map → tap destination sector trench
-- [ ] Move cooldown ~15s
+- [x] **Tap MG** on your trench line to select
+- [x] **Tap destination sector** in your trench band to relocate
+- [x] **15s move cooldown** per MG (countdown on sprite)
+- [x] **Up to 3 MGs per sector** — staggered slots like platoons; pool unchanged on move
+- [x] **MG line forward / troop line back** — easier tap selection
 
 ### v0.6 Phase 4 — Combat polish
 

@@ -1,6 +1,6 @@
 import type { FixedEmplacement, Platoon, Side } from "../types";
 import { CONFIG } from "../types";
-import { frontTrenchY, sectorFromX, sectorWidth, sectorX, stagingY } from "./battlefield";
+import { emplacementLineY, sectorFromX, sectorWidth, sectorX, stagingY, platoonFrontY } from "./battlefield";
 import { opponentTrenchY } from "./platoons";
 
 export const PLATOON_SLOT_W = 34;
@@ -32,7 +32,7 @@ function platoonRow(p: Platoon): PlatoonRow | null {
 function rowY(p: Platoon, row: PlatoonRow): number {
   switch (row) {
     case "front":
-      return frontTrenchY(p.side);
+      return platoonFrontY(p.side);
     case "staging":
       return stagingY(p.side);
     case "invader":
@@ -67,7 +67,7 @@ export function layoutAllPlatoons(platoons: Platoon[]): void {
   }
 }
 
-/** Spread emplacements side-by-side within each sector trench line. */
+/** Spread emplacements side-by-side within each sector (up to MAX_MG_PER_SECTOR MGs). */
 export function layoutEmplacements(emplacements: FixedEmplacement[]): void {
   for (let s = 0; s < CONFIG.sectorCount; s++) {
     for (const side of ["player", "enemy"] as Side[]) {
@@ -76,6 +76,7 @@ export function layoutEmplacements(emplacements: FixedEmplacement[]): void {
         .sort((a, b) => a.id.localeCompare(b.id));
       group.forEach((e, i) => {
         e.x = slotXInSector(s, i, group.length, EMP_SLOT_W);
+        e.y = emplacementLineY(e.side);
       });
     }
   }

@@ -28,7 +28,14 @@ import {
   tickTrenchMelee,
   type CombatEvents,
 } from "./combat";
-import { placeEmplacementInSector, seedEnemyEmplacements, seedPlayerEmplacements } from "./emplacements";
+import {
+  canPlaceMgInSector,
+  movePlayerMgToSector,
+  placeEmplacementInSector,
+  seedEnemyEmplacements,
+  seedPlayerEmplacements,
+  tickEmplacementMoveCooldown,
+} from "./emplacements";
 import {
   callUpPlatoon,
   createPlatoons,
@@ -36,7 +43,6 @@ import {
   movePlatoonToFront,
   movePlatoonToStaging,
   platoonsInSector,
-  totalStrength,
 } from "./platoons";
 import { layoutAllPlatoons } from "./layout";
 import {
@@ -54,10 +60,17 @@ import {
   tickHomeTrenchRelief,
   tickPlatoonMovement,
   tickReplacements,
+  canLaunchAssault,
   type AIState,
 } from "./simulation";
-import { CONFIG, DEV_MODE } from "../types";
+import { CONFIG } from "../types";
 import { CALL_UP_REGEN_SEC, MG_POOL_START } from "./ResourceConfig";
+import {
+  sectorsUnderBarrage,
+  snapshotAssaultActive,
+  tickPlayerEffectiveness,
+  trackAssaultEffectivenessEvents,
+} from "./effectiveness";
 import { queueSound } from "../audio/AudioDirector";
 import type { MissionStats } from "../app/MissionStats";
 import { createMissionStats, sampleCasualtyHistory } from "../app/MissionStats";
@@ -85,6 +98,7 @@ export interface GameState {
   paused: boolean;
   phase: GamePhase;
   selectedPlatoons: string[];
+  selectedEmplacementId: string | null;
   selectedSector: number | null;
   mode: InteractionMode;
   replacementPool: number;
@@ -95,11 +109,11 @@ export interface GameState {
   showCasualtyChart: boolean;
   aiDifficulty: AIDifficulty;
   campaignLevel: number;
-  /** Per-sector call-up regen progress 0–1 (1 = ready). */
   callUpRegen: number[];
   mgPool: number;
   mgPoolMax: number;
   unlimitedResources: boolean;
+  assaultActivePrev: Map<string, boolean>;
 }
 
 export function createGame(options: NewGameOptions = {}): GameState {
@@ -121,6 +135,7 @@ export function createGame(options: NewGameOptions = {}): GameState {
     paused: false,
     phase: "playing",
     selectedPlatoons: [],
+    selectedEmplacementId: null,
     selectedSector: null,
     mode: "select",
     replacementPool: 0,
@@ -135,6 +150,7 @@ export function createGame(options: NewGameOptions = {}): GameState {
     mgPool: MG_POOL_START,
     mgPoolMax: MG_POOL_START,
     unlimitedResources,
+    assaultActivePrev: new Map(),
   };
 }
 
@@ -165,6 +181,7 @@ export function closeCasualtyChart(game: GameState): void {
 export function setMode(game: GameState, mode: InteractionMode): void {
   game.mode = mode;
   game.artyPreview = null;
+  game.selectedEmplacementId = null;
 }
 
 export function returnToSelectMode(game: GameState): void {
@@ -173,6 +190,7 @@ export function returnToSelectMode(game: GameState): void {
 
 export function selectPlatoonSingle(game: GameState, platoonId: string): void {
   game.selectedPlatoons = [platoonId];
+  game.selectedEmplacementId = null;
   const p = game.platoons.find((x) => x.id === platoonId);
   if (p) game.selectedSector = p.sector;
 }
@@ -201,10 +219,30 @@ export function selectPlatoonGroup(game: GameState, platoonId: string): void {
     return;
   }
   game.selectedSector = p.sector;
+  game.selectedEmplacementId = null;
 }
 
 export function clearSelection(game: GameState): void {
   game.selectedPlatoons = [];
+  game.selectedEmplacementId = null;
+}
+
+export function selectPlayerMg(game: GameState, emplacementId: string): void {
+  const emp = game.emplacements.find((e) => e.id === emplacementId);
+  if (!emp || emp.side !== "player" || emp.type !== "mg") return;
+  game.selectedEmplacementId = emplacementId;
+  game.selectedPlatoons = [];
+  game.selectedSector = emp.sector;
+}
+
+export function moveSelectedMgToSector(game: GameState, sector: number): boolean {
+  if (!game.selectedEmplacementId) return false;
+  const ok = movePlayerMgToSector(game.emplacements, game.selectedEmplacementId, sector);
+  if (ok) {
+    game.selectedSector = sector;
+    clearSelection(game);
+  }
+  return ok;
 }
 
 export function applySelectedMove(game: GameState, sector: number, zone: MoveTapZone): void {
@@ -295,9 +333,9 @@ export function reservesAvailableForSector(game: GameState, sector: number): boo
 }
 
 export function mgAvailableForSector(game: GameState, sector: number): boolean {
-  if (game.unlimitedResources) return true;
+  if (game.unlimitedResources) return canPlaceMgInSector(game.emplacements, "player", sector);
   if (game.mgPool <= 0) return false;
-  return !game.emplacements.some((e) => e.side === "player" && e.sector === sector && e.type === "mg");
+  return canPlaceMgInSector(game.emplacements, "player", sector);
 }
 
 export function tickResourceRegen(game: GameState, dt: number): void {
@@ -324,8 +362,8 @@ export function moveSelectedToFront(game: GameState, sector: number): void {
 export function playerSectorDoubleClick(game: GameState, sector: number): void {
   if (game.phase !== "playing") return;
   game.selectedSector = sector;
-  queueSound(game, { type: "whistle" });
-  playerAssault(game, sector);
+  const launched = playerAssault(game, sector);
+  if (launched) queueSound(game, { type: "whistle" });
   moveStagingToFront(game.platoons, sector, "player");
   layoutAllPlatoons(game.platoons);
   clearSelection(game);
@@ -410,6 +448,7 @@ export function tick(game: GameState, dt: number): void {
   game.replacementPool = tickReplacements(game.platoons, dt);
   spawnEnemyReplacements(game.platoons, dt);
   tickResourceRegen(game, dt);
+  tickEmplacementMoveCooldown(game.emplacements, dt);
 
   tickNmlEncounters(game.platoons, dt, game.events, game.stats);
   tickHomeTrenchRelief(game.platoons, game.assaults);
@@ -424,18 +463,24 @@ export function tick(game: GameState, dt: number): void {
   decayEffects(game.events, dt);
   sampleCasualtyHistory(game.stats, game.time);
 
-  game.assaults = game.assaults.filter((a) => {
-    const active = game.platoons.some((p) => {
+  for (const a of game.assaults) {
+    a.active = game.platoons.some((p) => {
       if (p.assaultId !== a.id || p.strength <= 0) return false;
       if (a.kind === "relief") return p.state === "crossing";
       return p.state === "crossing" || p.state === "enemy_trench";
     });
-    a.active = active;
-    return active || game.time - dt < 120;
+  }
+  trackAssaultEffectivenessEvents(game.platoons, game.assaults, game.assaultActivePrev);
+  const barrage = sectorsUnderBarrage([...game.playerBatteries, ...game.enemyBatteries]);
+  tickPlayerEffectiveness(game.platoons, dt, barrage);
+
+  game.assaults = game.assaults.filter((a) => {
+    return a.active || game.time - dt < 120;
   });
+  game.assaultActivePrev = snapshotAssaultActive(game.assaults);
 
   if (checkVictory(game.sectors, game.platoons)) game.phase = "victory";
-  else if (checkDefeat(game.platoons)) game.phase = "defeat";
+  else if (checkDefeat(game.platoons, game.sectors)) game.phase = "defeat";
 }
 
 export function getStatusText(game: GameState): string {
@@ -443,6 +488,14 @@ export function getStatusText(game: GameState): string {
   if (game.phase === "defeat") return "Your line has collapsed.";
   if (game.paused) return "Paused — plan your next move";
   if (game.showCasualtyChart) return "Casualties — game paused";
+  if (game.selectedEmplacementId) {
+    const emp = game.emplacements.find((e) => e.id === game.selectedEmplacementId);
+    if (emp) {
+      const cd =
+        emp.moveCooldown > 0 ? ` · move ready in ${Math.ceil(emp.moveCooldown)}s` : " · tap your trench to relocate";
+      return `MG selected (sector ${emp.sector + 1})${cd}`;
+    }
+  }
   if (game.mode === "artillery") {
     const ready = game.playerBatteries.filter((b) => b.ammo > 0 && b.state === "idle").length;
     return ready > 0
@@ -454,9 +507,18 @@ export function getStatusText(game: GameState): string {
   if (sector !== null) {
     const staging = platoonsInSector(game.platoons, "player", sector, ["staging"]).reduce((a, p) => a + p.strength, 0);
     const enemy = platoonsInSector(game.platoons, "enemy", sector, ["staging", "front"]).reduce((a, p) => a + p.strength, 0);
-    return `Sector ${sector + 1}: ${Math.round(staging)} men staging · ${Math.round(enemy)} enemy opposite · AI ${game.ai.profile.label}`;
+    const frontPlatoons = platoonsInSector(game.platoons, "player", sector, ["front"]);
+    const avgEff =
+      frontPlatoons.length > 0
+        ? Math.round(frontPlatoons.reduce((a, p) => a + p.effectiveness, 0) / frontPlatoons.length)
+        : null;
+    const effHint = avgEff !== null ? ` · eff ${avgEff}%` : "";
+    const assaultHint = canLaunchAssault(game.platoons, "player", sector)
+      ? "double-tap sector to advance"
+      : "need front troops to assault";
+    return `Sector ${sector + 1}: ${Math.round(staging)} staging · ${Math.round(enemy)} enemy${effHint} · ${assaultHint}`;
   }
-  return `Opponent: ${game.ai.profile.label} · tap platoon · double-tap sector to advance`;
+  return `Opponent: ${game.ai.profile.label} · tap platoon or MG · double-tap sector to advance`;
 }
 
 export function getArtilleryStatus(game: GameState): string {
@@ -475,9 +537,7 @@ export function getArtilleryStatus(game: GameState): string {
 export function canAssault(game: GameState): boolean {
   const sector = game.selectedSector;
   if (sector === null) return false;
-  const front = platoonsInSector(game.platoons, "player", sector, ["front"]);
-  if (DEV_MODE) return front.length > 0;
-  return totalStrength(front) >= CONFIG.platoonSize * 2.5;
+  return canLaunchAssault(game.platoons, "player", sector);
 }
 
 export function getEvents(game: GameState): {
