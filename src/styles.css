@@ -360,9 +360,16 @@ body {
 }
 
 .menu-scores {
-  margin: 0 0 24px;
+  margin: 0 0 8px;
   font-size: 0.85rem;
   color: #b8b4a8;
+}
+
+.campaign-hint {
+  margin: 0 0 20px;
+  font-size: 0.78rem;
+  color: #8a8778;
+  line-height: 1.35;
 }
 
 .menu-actions {

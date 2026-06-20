@@ -1,8 +1,10 @@
 # Trench Command — Roadmap
 
-**Current:** v0.6 Phase 4 — combat polish complete.
+**Current:** v0.6 complete + post-Phase-4 fixes (call-up, AI tempo, staging select, melee range).
 
-**Next:** v0.4 campaign ladder, or Phase 2b — enemy effectiveness + AI.
+**Next:** Campaign **Phase 1** (v0.7.0) — see [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md).
+
+**Full campaign spec:** [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md) — BEF Amiens 1918, 3-layer zoom, phased through Android v1.0.
 
 ---
 
@@ -56,9 +58,22 @@ Do **not** bundle 2b with Phase 2 player implementation.
 - [x] **Status toasts** — assault, arty, MG move, sector capture/loss, barrage
 - [x] **Effectiveness badge** — optional in settings (on by default)
 
-### Then v0.4 — Campaign ladder
+### Campaign (v0.7 → v1.0) — see `docs/CAMPAIGN.md`
 
-(Unchanged — unlock levels, scale enemy, procedural maps.)
+| Version | Phase | Deliverable |
+|---------|-------|-------------|
+| v0.6.1 | 0 | Mission outcome API, save stub, Skirmish vs Campaign menu ✅ |
+| v0.7.0 | 1 | `CampaignState`, company OOB, save/load |
+| v0.7.1 | 2 | Division map UI → tactical → return |
+| v0.7.2 | 3 | Retreat, redeploy delay, company transfer |
+| v0.7.3 | 4 | Per-map templates (terrain, arc, defenses) |
+| v0.8.0 | 5 | Overextension / counter-push events (no background AI) |
+| v0.8.1 | 6 | Recruit pool, rebuild destroyed companies |
+| v0.8.2 | 7 | Army map (10 divs, 3 playable) |
+| v0.9.0 | 8 | Objective win/fail, campaign polish |
+| v1.0.0 | 9 | Android APK (Capacitor, offline) |
+
+**Deferred:** old “v0.4 ladder” (linear level unlock) — superseded by campaign phases above.
 
 ### Quick wins (anytime)
 
@@ -72,7 +87,7 @@ Do **not** bundle 2b with Phase 2 player implementation.
 |---------|--------|
 | **v0.7** | Fog of war — hidden reserves, spotting, counter-battery |
 | **v0.8+** | Async multiplayer / daily seed challenge |
-| **Mobile** | Capacitor wrap per `docs/ANDROID.md` |
+| **Mobile** | Campaign v1.0 = Capacitor APK per `docs/ANDROID.md` |
 
 ---
 
@@ -172,20 +187,15 @@ Keep a **debug toggle** in settings for unlimited mode during balance pass.
 
 ---
 
-## v0.4 — Procedural levels & campaign (deferred)
+## v0.7+ — Campaign (detailed checklist in `docs/CAMPAIGN.md`)
 
-### Phase A — Campaign ladder (v0.4.0)
+High-level only — full acceptance criteria live in the campaign doc.
 
-- [ ] Level select, unlock on victory, scale enemy via `campaignLevel`
-- [ ] Briefing per level; enable **Continue**
-
-### Phase B — Procedural battlefield (v0.4.1)
-
-- [ ] Seed generator, wire, hills, variable geometry
-
-### Phase C — Save & polish (v0.4.2)
-
-- [ ] Mid-mission save, tutorial overlay, assault/arty toasts
+- [ ] **Phase 0–2:** Division front + one tactical loop with persistent company strength
+- [ ] **Phase 3–4:** Back-out penalty, map variety (not same skirmish every time)
+- [ ] **Phase 5–6:** Salient/overextension events; recruit backfill pipeline
+- [ ] **Phase 7–8:** Army zoom + River Line objective win
+- [ ] **Phase 9:** Android offline build
 
 ---
 
@@ -233,23 +243,11 @@ Goal: the game *sounds* and *reads* like a battle, not a diagram.
 
 ---
 
-## v0.4 — Procedural levels & campaign
+## Mission templates (campaign Phase 4 + skirmish)
 
-See **What to build next** above for phased checklist.
-
-### Level generation
-- [ ] Seed-based generator (display seed, optional share code)
-- [ ] Variable trench depth / NML width per level
-- [ ] Staggered or broken front (sector height offsets)
-- [ ] **Barbed wire** bands in NML (slows crossing, extra casualties)
-- [ ] **Hills / dead ground** — blocks or reduces arty / rifle bands per sector
-- [ ] Pillbox count and placement scales with level index
-- [ ] Enemy starting strength and emplacement density scale mildly
-
-### Progression
-- [ ] Level 1–N campaign ladder on main menu
-- [ ] Unlock next level on victory; retry on defeat
-- [ ] Short briefing text per level (“Sector 4–7: wire reported…”)
+- [ ] Seed + template id → trench arc, NML width, wire, hills
+- [ ] Static enemy OOB per company (not procedural AI)
+- [ ] Briefing intel lines from template metadata
 
 ---
 
@@ -307,9 +305,12 @@ v0.1  →  playable greybox
 v0.2  →  audio + sprites
 v0.3  →  main menu + mission end flow + casualty chart
 v0.5  →  AI difficulty
-v0.6  →  limited mode: regen + MG pool  ← Phase 1 done; Phase 2 effectiveness next
-v0.4  →  campaign ladder + procedural maps
-v0.7+ →  fog of war, then multiplayer experiments
+v0.6  →  limited mode, effectiveness, MGs, combat polish ✅
+v0.7  →  campaign: division map + tactical loop
+v0.8  →  overextension, recruits, army map
+v0.9  →  campaign win/fail
+v1.0  →  Android offline release
+v1.x  →  fog of war, other armies, historical names
 ```
 
 ---
@@ -329,4 +330,4 @@ v0.7+ →  fog of war, then multiplayer experiments
 
 ---
 
-*Last updated: v0.6 Phase 1 shipped — Phase 2 effectiveness next.*
+*Last updated: v0.6 complete — campaign plan in `docs/CAMPAIGN.md`.*

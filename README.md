@@ -2,7 +2,9 @@
 
 Real-time WW1 trench sector commander — mass troops, bracket no man's land with artillery, and assault sector by sector until the enemy line is yours.
 
-**v0.6** — Limited mode + **effectiveness** (fire rate, movement, staging recovery, assault surge). Phase 3: movable MGs.
+**v0.6.1** — Campaign Phase 0: `MissionOutcome`, save stub, Skirmish vs Campaign menu, Withdraw.
+
+**v0.6** — Limited mode + **effectiveness** (fire rate, movement, staging recovery, assault surge). Movable MGs.
 
 See [ROADMAP.md](./ROADMAP.md) and [docs/ANDROID.md](./docs/ANDROID.md).
 

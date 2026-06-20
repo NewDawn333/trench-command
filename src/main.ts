@@ -1,23 +1,22 @@
-import { createGame, tick, type GameState } from "./game/Game";
+import { createGame, playerRetreatMission, tick, type GameState } from "./game/Game";
 import { Renderer } from "./game/Renderer";
 import { InputHandler, bindUI, updateHUD } from "./game/Input";
 import { audioManager } from "./audio/AudioManager";
 import { AudioDirector } from "./audio/AudioDirector";
 import {
   loadGameSettings,
+  loadHighScores,
   recordMissionResult,
   saveGameSettings,
   type GameSettings,
 } from "./app/GameSettings";
-import {
-  buildMissionSummary,
-  captureBaseline,
-  type MissionBaseline,
-} from "./app/MissionStats";
+import { buildMissionOutcome, captureBaseline, type MissionBaseline } from "./app/MissionStats";
 import { bindMenuSettings, bindDifficultyPicker, renderMissionEnd, updateMenuHighScores } from "./app/Menu";
+import { initCampaignMenuSlot, refreshCampaignMenuButtons } from "./app/campaignMenu";
 import { applyControlHintsVisible, showScreen, type AppScreen } from "./app/screens";
 import { drawCasualtyChart } from "./app/CasualtyChart";
 import { renderToasts } from "./app/Toasts";
+import type { MissionResult } from "./mission/MissionOutcome";
 
 let game: GameState = createGame();
 let baseline: MissionBaseline = captureBaseline(game);
@@ -55,23 +54,27 @@ function hideOverlay(): void {
   document.getElementById("overlay")?.classList.add("hidden");
 }
 
+function missionResultFromPhase(phase: GameState["phase"]): MissionResult {
+  if (phase === "victory") return "victory";
+  if (phase === "retreat") return "retreat";
+  return "defeat";
+}
+
 function showMissionEnd(): void {
   missionEnded = true;
-  const summary = buildMissionSummary(
-    game,
-    baseline,
-    game.phase === "victory" ? "victory" : "defeat",
-  );
-  const scores = recordMissionResult(summary.outcome === "victory", summary.timeSeconds);
+  const result = missionResultFromPhase(game.phase);
+  const outcome = buildMissionOutcome(game, baseline, result, "skirmish");
+  const scores =
+    result === "retreat" ? loadHighScores() : recordMissionResult(result === "victory", outcome.durationSec);
 
   const overlay = document.getElementById("overlay")!;
   const content = document.getElementById("overlay-content")!;
   overlay.classList.remove("hidden");
-  content.innerHTML = renderMissionEnd(summary, scores);
+  content.innerHTML = renderMissionEnd(outcome, scores);
 
   document.getElementById("btn-retry")?.addEventListener("click", () => {
     hideOverlay();
-    startNewGame();
+    startSkirmish();
   });
   document.getElementById("btn-menu")?.addEventListener("click", () => {
     hideOverlay();
@@ -79,7 +82,7 @@ function showMissionEnd(): void {
   });
 }
 
-function startNewGame(): void {
+function startSkirmish(): void {
   ensureAudio();
   game = createGame({
     aiDifficulty: appSettings.aiDifficulty,
@@ -98,7 +101,6 @@ function startNewGame(): void {
   document.getElementById("btn-pause")!.textContent = "Pause";
   document.getElementById("casualty-overlay")?.classList.add("hidden");
   document.getElementById("btn-casualties")?.classList.remove("btn-active");
-  // Canvas was hidden at init — layout now that the game screen is visible.
   requestAnimationFrame(() => renderer.resize());
   refreshHUD();
 }
@@ -109,6 +111,7 @@ function goToMenu(): void {
   hideOverlay();
   showScreen("menu");
   updateMenuHighScores();
+  refreshCampaignMenuButtons();
 }
 
 bindUI(() => game, refreshHUD, input, {
@@ -129,10 +132,13 @@ bindDifficultyPicker(appSettings, (s) => {
   saveGameSettings(appSettings);
 });
 
-document.getElementById("btn-new-game")!.addEventListener("click", () => {
+document.getElementById("btn-skirmish")!.addEventListener("click", () => {
   ensureAudio();
-  screen = "game";
-  startNewGame();
+  startSkirmish();
+});
+
+document.getElementById("btn-campaign")!.addEventListener("click", () => {
+  /* disabled until v0.7 — handler reserved */
 });
 
 document.getElementById("btn-settings")!.addEventListener("click", () => {
@@ -153,12 +159,19 @@ document.getElementById("btn-credits-close")!.addEventListener("click", () => {
   document.getElementById("panel-credits")!.classList.add("hidden");
 });
 
+document.getElementById("btn-withdraw")!.addEventListener("click", () => {
+  if (screen !== "game" || missionEnded || game.phase !== "playing") return;
+  playerRetreatMission(game);
+});
+
 canvas.addEventListener("pointerdown", ensureAudio, { once: false });
 document.getElementById("btn-pause")?.addEventListener("click", ensureAudio);
 
+initCampaignMenuSlot();
 showScreen("menu");
 applySettings();
 updateMenuHighScores();
+refreshCampaignMenuButtons();
 
 function loop(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000);

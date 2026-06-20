@@ -12,8 +12,9 @@
       <section id="screen-menu" class="screen screen-menu">
         <div class="menu-card">
           <h1 class="menu-title">Trench Command</h1>
-          <p class="menu-tagline">Real-time sector assault · v0.5</p>
+          <p class="menu-tagline">Real-time sector assault · v0.6.1</p>
           <p id="menu-scores" class="menu-scores"></p>
+          <p id="campaign-hint" class="campaign-hint"></p>
           <div class="difficulty-picker">
             <span class="label">Enemy doctrine</span>
             <div class="difficulty-options" role="group" aria-label="AI difficulty">
@@ -24,8 +25,9 @@
             <p id="difficulty-blurb" class="difficulty-blurb">Standard tempo — watch for staging and weak sectors.</p>
           </div>
           <div class="menu-actions">
-            <button id="btn-new-game" class="btn btn-large btn-active">New Game</button>
-            <button id="btn-continue" class="btn btn-large" disabled title="Coming in a future update">Continue</button>
+            <button id="btn-skirmish" class="btn btn-large btn-active">Skirmish</button>
+            <button id="btn-campaign" class="btn btn-large" disabled title="Division map arrives in v0.7">Campaign</button>
+            <button id="btn-continue" class="btn btn-large" disabled title="No campaign in progress">Continue</button>
             <button id="btn-settings" class="btn btn-large">Settings</button>
             <button id="btn-credits" class="btn btn-large">Credits</button>
           </div>
@@ -68,6 +70,7 @@
           </div>
           <div class="hud-center">
             <button id="btn-pause" class="btn">Pause</button>
+            <button id="btn-withdraw" class="btn" title="Leave mission without defeat">Withdraw</button>
             <button id="btn-menu-ingame" class="btn">Menu</button>
           </div>
           <div class="hud-right">

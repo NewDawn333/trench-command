@@ -1,6 +1,7 @@
 import type { GameState } from "../game/Game";
-import type { AIDifficulty } from "./Difficulty";
 import type { Side } from "../types";
+import type { MissionOutcome, MissionResult } from "../mission/MissionOutcome";
+import { buildMissionOutcome } from "../mission/MissionOutcome";
 
 export interface MissionBaseline {
   playerAmmo: number;
@@ -21,16 +22,8 @@ export interface MissionStats {
   lastSampleTime: number;
 }
 
-export interface MissionSummary {
-  outcome: "victory" | "defeat";
-  timeSeconds: number;
-  playerCasualties: number;
-  enemyCasualties: number;
-  sectorsCaptured: number;
-  shellsFired: number;
-  assaultsOrdered: number;
-  aiDifficulty: AIDifficulty;
-}
+/** @deprecated Use MissionOutcome */
+export type MissionSummary = MissionOutcome;
 
 const HISTORY_SAMPLE_SEC = 0.5;
 
@@ -68,22 +61,13 @@ export function captureBaseline(game: GameState): MissionBaseline {
   };
 }
 
+/** @deprecated Use buildMissionOutcome */
 export function buildMissionSummary(
   game: GameState,
   baseline: MissionBaseline,
-  outcome: "victory" | "defeat",
-): MissionSummary {
-  const ammoNow = game.playerBatteries.reduce((a, b) => a + b.ammo, 0);
-  sampleCasualtyHistory(game.stats, game.time);
-
-  return {
-    outcome,
-    timeSeconds: game.time,
-    playerCasualties: Math.round(game.stats.playerCasualties),
-    enemyCasualties: Math.round(game.stats.enemyCasualties),
-    sectorsCaptured: game.sectors.filter((s) => s.controller === "player").length,
-    shellsFired: Math.max(0, baseline.playerAmmo - ammoNow),
-    assaultsOrdered: game.stats.assaultsOrdered,
-    aiDifficulty: game.aiDifficulty,
-  };
+  outcome: MissionResult,
+): MissionOutcome {
+  return buildMissionOutcome(game, baseline, outcome, "skirmish");
 }
+
+export { buildMissionOutcome };

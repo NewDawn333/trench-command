@@ -87,7 +87,7 @@ export interface NewGameOptions {
   showEffectivenessBadge?: boolean;
 }
 
-export type GamePhase = "playing" | "victory" | "defeat";
+export type GamePhase = "playing" | "victory" | "defeat" | "retreat";
 
 export interface GameState {
   platoons: Platoon[];
@@ -189,6 +189,14 @@ export function closeCasualtyChart(game: GameState): void {
   if (!game.showCasualtyChart) return;
   game.showCasualtyChart = false;
   game.paused = false;
+}
+
+/** End mission without defeat — no skirmish penalty (campaign redeploy rules in v0.7.2). */
+export function playerRetreatMission(game: GameState): void {
+  if (game.phase !== "playing") return;
+  game.phase = "retreat";
+  game.paused = false;
+  game.showCasualtyChart = false;
 }
 
 export function setMode(game: GameState, mode: InteractionMode): void {
@@ -515,6 +523,7 @@ export function tick(game: GameState, dt: number): void {
 export function getStatusText(game: GameState): string {
   if (game.phase === "victory") return "Enemy line overrun — sector secured!";
   if (game.phase === "defeat") return "Your line has collapsed.";
+  if (game.phase === "retreat") return "Withdrawn from the sector.";
   if (game.paused) return "Paused — plan your next move";
   if (game.showCasualtyChart) return "Casualties — game paused";
   if (game.selectedEmplacementId) {

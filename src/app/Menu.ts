@@ -1,35 +1,58 @@
-import type { MissionSummary } from "./MissionStats";
+import type { MissionOutcome } from "../mission/MissionOutcome";
 import { formatTime, loadHighScores, type GameSettings } from "./GameSettings";
 import type { AudioManager } from "../audio/AudioManager";
 import type { AIDifficulty } from "./Difficulty";
 import { difficultyDescription } from "./Difficulty";
 
-export function renderMissionEnd(summary: MissionSummary, scores: ReturnType<typeof loadHighScores>): string {
-  const title = summary.outcome === "victory" ? "Sector Captured" : "Line Lost";
-  const subtitle =
-    summary.outcome === "victory"
-      ? "The entire enemy trench line is yours."
-      : "Your battalion cannot hold the front.";
+function missionEndCopy(outcome: MissionOutcome): { title: string; subtitle: string } {
+  switch (outcome.result) {
+    case "victory":
+      return {
+        title: "Sector Captured",
+        subtitle: "The entire enemy trench line is yours.",
+      };
+    case "retreat":
+      return {
+        title: "Withdrawn",
+        subtitle: "Your company pulled back from the sector.",
+      };
+    default:
+      return {
+        title: "Line Lost",
+        subtitle: "Your battalion cannot hold the front.",
+      };
+  }
+}
+
+export function renderMissionEnd(outcome: MissionOutcome, scores: ReturnType<typeof loadHighScores>): string {
+  const { title, subtitle } = missionEndCopy(outcome);
 
   const bestLine =
-    scores.bestVictoryTime !== null
+    outcome.result === "victory" && scores.bestVictoryTime !== null
       ? `<p class="best-time">Best victory: ${formatTime(scores.bestVictoryTime)}</p>`
       : "";
+
+  const recordLine =
+    outcome.result === "retreat"
+      ? ""
+      : `<p class="record-line">Record: ${scores.victories} wins · ${scores.defeats} losses</p>`;
 
   return `
     <h2>${title}</h2>
     <p>${subtitle}</p>
     <dl class="mission-stats">
-      <dt>Opponent</dt><dd>${summary.aiDifficulty.charAt(0).toUpperCase() + summary.aiDifficulty.slice(1)}</dd>
-      <dt>Time</dt><dd>${formatTime(summary.timeSeconds)}</dd>
-      <dt>Sectors held</dt><dd>${summary.sectorsCaptured} / 8</dd>
-      <dt>Your casualties</dt><dd>${summary.playerCasualties}</dd>
-      <dt>Enemy casualties</dt><dd>${summary.enemyCasualties}</dd>
-      <dt>Shells fired</dt><dd>${summary.shellsFired}</dd>
-      <dt>Assaults ordered</dt><dd>${summary.assaultsOrdered}</dd>
+      <dt>Opponent</dt><dd>${outcome.aiDifficulty.charAt(0).toUpperCase() + outcome.aiDifficulty.slice(1)}</dd>
+      <dt>Time</dt><dd>${formatTime(outcome.durationSec)}</dd>
+      <dt>Sectors held</dt><dd>${outcome.sectorsCaptured} / 8</dd>
+      <dt>Strength remaining</dt><dd>${outcome.companyStrengthAfter}</dd>
+      <dt>Platoons lost</dt><dd>${outcome.platoonsLost}</dd>
+      <dt>Your casualties</dt><dd>${outcome.playerCasualties}</dd>
+      <dt>Enemy casualties</dt><dd>${outcome.enemyCasualties}</dd>
+      <dt>Shells fired</dt><dd>${outcome.shellsFired}</dd>
+      <dt>Assaults ordered</dt><dd>${outcome.assaultsOrdered}</dd>
     </dl>
     ${bestLine}
-    <p class="record-line">Record: ${scores.victories} wins · ${scores.defeats} losses</p>
+    ${recordLine}
     <div class="overlay-actions">
       <button class="btn" id="btn-retry">Retry</button>
       <button class="btn btn-active" id="btn-menu">Main Menu</button>
