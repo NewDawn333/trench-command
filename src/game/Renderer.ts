@@ -1,6 +1,7 @@
 import type { GameState } from "./Game";
-import { reservesAvailableForSector } from "./Game";
+import { mgAvailableForSector, reservesAvailableForSector } from "./Game";
 import { CONFIG, LAYOUT } from "../types";
+import { CALL_UP_REGEN_SEC } from "./ResourceConfig";
 import { callUpButtonRect, mgButtonRect, sectorCenterX, sectorWidth } from "./battlefield";
 import {
   drawEmplacementSprite,
@@ -64,7 +65,7 @@ export class Renderer {
     this.drawPlatoons(ctx, game);
     this.drawEffects(ctx, game);
     this.drawCallUpButtons(ctx, game);
-    this.drawMgButtons(ctx);
+    this.drawMgButtons(ctx, game);
     this.drawLabels(ctx);
   }
 
@@ -198,38 +199,69 @@ export class Renderer {
       const r = callUpButtonRect(i);
       const available = reservesAvailableForSector(game, i);
       const selected = game.selectedSector === i;
+      const progress = game.unlimitedResources ? 1 : game.callUpRegen[i];
 
-      ctx.fillStyle = available ? (selected ? "#5a6848" : "#3a4434") : "#252820";
-      ctx.strokeStyle = available ? (selected ? "#b8d888" : "#6a8058") : "#3a4034";
-      ctx.lineWidth = available ? 2 : 1;
+      ctx.fillStyle = "#252820";
       ctx.beginPath();
       ctx.roundRect(r.x, r.y, r.w, r.h, 3);
       ctx.fill();
+
+      if (progress > 0 && progress < 1) {
+        ctx.fillStyle = "#3a5038";
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w * progress, r.h, 3);
+        ctx.fill();
+      }
+
+      const ready = available;
+      ctx.fillStyle = ready ? (selected ? "#5a6848" : "#3a4434") : "#2a3028";
+      if (ready) {
+        ctx.globalAlpha = 0.55;
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, 3);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.strokeStyle = ready ? (selected ? "#b8d888" : "#6dff6d") : "#3a4034";
+      ctx.lineWidth = ready ? 2 : 1;
+      ctx.beginPath();
+      ctx.roundRect(r.x, r.y, r.w, r.h, 3);
       ctx.stroke();
 
-      ctx.fillStyle = available ? "#e8e4dc" : "#666860";
+      ctx.fillStyle = ready ? "#e8e4dc" : "#666860";
       ctx.font = "10px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText(available ? "+ Call Up" : "No reserves", r.x + r.w / 2, r.y + r.h / 2 + 3);
+      ctx.fillText(ready ? "+ Call Up" : `${Math.ceil((1 - progress) * CALL_UP_REGEN_SEC)}s`, r.x + r.w / 2, r.y + r.h / 2 + 3);
       ctx.textAlign = "left";
     }
   }
 
-  private drawMgButtons(ctx: CanvasRenderingContext2D): void {
+  private drawMgButtons(ctx: CanvasRenderingContext2D, game: GameState): void {
     for (let i = 0; i < CONFIG.sectorCount; i++) {
       const r = mgButtonRect(i);
-      ctx.fillStyle = "#2e3848";
-      ctx.strokeStyle = "#5a7898";
+      const available = mgAvailableForSector(game, i);
+      const hasMg = game.emplacements.some((e) => e.side === "player" && e.sector === i && e.type === "mg");
+
+      ctx.fillStyle = available ? "#2e3848" : "#252830";
+      ctx.strokeStyle = available ? "#5a7898" : "#3a4048";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(r.x, r.y, r.w, r.h, 3);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = "#a8c4e0";
+      ctx.fillStyle = available ? "#a8c4e0" : "#666870";
       ctx.font = "10px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText("+ MG", r.x + r.w / 2, r.y + r.h / 2 + 3);
+      let label = "+ MG";
+      if (hasMg) label = "MG";
+      else if (!available && !game.unlimitedResources) {
+        label = game.mgPool <= 0 ? "No MGs" : "MG";
+      } else if (!game.unlimitedResources && game.mgPool > 0) {
+        label = `+ MG (${game.mgPool})`;
+      }
+      ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 3);
       ctx.textAlign = "left";
     }
   }

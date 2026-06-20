@@ -21,6 +21,7 @@ import {
   orderBatteryFire,
   stopBattery,
   tickArtillery,
+  tickArtilleryRegen,
   tickEmplacements,
   tickNmlEncounters,
   tickTrenchFire,
@@ -56,6 +57,7 @@ import {
   type AIState,
 } from "./simulation";
 import { CONFIG, DEV_MODE } from "../types";
+import { CALL_UP_REGEN_SEC, MG_POOL_START } from "./ResourceConfig";
 import { queueSound } from "../audio/AudioDirector";
 import type { MissionStats } from "../app/MissionStats";
 import { createMissionStats, sampleCasualtyHistory } from "../app/MissionStats";
@@ -66,6 +68,7 @@ import { createSectors, sectorFromX, type MoveTapZone } from "./battlefield";
 export interface NewGameOptions {
   aiDifficulty?: AIDifficulty;
   campaignLevel?: number;
+  unlimitedResources?: boolean;
 }
 
 export type GamePhase = "playing" | "victory" | "defeat";
@@ -92,11 +95,17 @@ export interface GameState {
   showCasualtyChart: boolean;
   aiDifficulty: AIDifficulty;
   campaignLevel: number;
+  /** Per-sector call-up regen progress 0–1 (1 = ready). */
+  callUpRegen: number[];
+  mgPool: number;
+  mgPoolMax: number;
+  unlimitedResources: boolean;
 }
 
 export function createGame(options: NewGameOptions = {}): GameState {
   const aiDifficulty = options.aiDifficulty ?? "balanced";
   const campaignLevel = options.campaignLevel ?? 1;
+  const unlimitedResources = options.unlimitedResources ?? false;
   const aiProfile = getAIProfile(aiDifficulty, campaignLevel);
   const platoons = [...createPlatoons("player"), ...createPlatoons("enemy")];
   layoutAllPlatoons(platoons);
@@ -122,6 +131,10 @@ export function createGame(options: NewGameOptions = {}): GameState {
     showCasualtyChart: false,
     aiDifficulty,
     campaignLevel,
+    callUpRegen: Array.from({ length: CONFIG.sectorCount }, () => 1),
+    mgPool: MG_POOL_START,
+    mgPoolMax: MG_POOL_START,
+    unlimitedResources,
   };
 }
 
@@ -269,13 +282,32 @@ export function moveSelectedLaterallyInGame(game: GameState, sector: number): vo
 
 export function callUpTroops(game: GameState, sector?: number): void {
   const s = sector ?? game.selectedSector ?? 0;
+  if (!reservesAvailableForSector(game, s)) return;
   callUpPlatoon(game.platoons, s);
+  if (!game.unlimitedResources) game.callUpRegen[s] = 0;
   layoutAllPlatoons(game.platoons);
   game.selectedSector = s;
 }
 
-export function reservesAvailableForSector(_game: GameState, _sector: number): boolean {
-  return DEV_MODE;
+export function reservesAvailableForSector(game: GameState, sector: number): boolean {
+  if (game.unlimitedResources) return true;
+  return game.callUpRegen[sector] >= 1;
+}
+
+export function mgAvailableForSector(game: GameState, sector: number): boolean {
+  if (game.unlimitedResources) return true;
+  if (game.mgPool <= 0) return false;
+  return !game.emplacements.some((e) => e.side === "player" && e.sector === sector && e.type === "mg");
+}
+
+export function tickResourceRegen(game: GameState, dt: number): void {
+  if (game.unlimitedResources) return;
+  for (let i = 0; i < CONFIG.sectorCount; i++) {
+    if (game.callUpRegen[i] < 1) {
+      game.callUpRegen[i] = Math.min(1, game.callUpRegen[i] + dt / CALL_UP_REGEN_SEC);
+    }
+  }
+  tickArtilleryRegen(game.playerBatteries, dt);
 }
 
 export function moveSelectedToFront(game: GameState, sector: number): void {
@@ -300,8 +332,11 @@ export function playerSectorDoubleClick(game: GameState, sector: number): void {
 }
 
 export function placeMgInSector(game: GameState, sector: number): boolean {
+  if (!mgAvailableForSector(game, sector)) return false;
   const emp = placeEmplacementInSector(game.emplacements, "player", sector, "mg");
-  return !!emp;
+  if (!emp) return false;
+  if (!game.unlimitedResources) game.mgPool -= 1;
+  return true;
 }
 
 export function playerAssault(game: GameState, sector: number): boolean {
@@ -374,6 +409,7 @@ export function tick(game: GameState, dt: number): void {
   game.time += dt;
   game.replacementPool = tickReplacements(game.platoons, dt);
   spawnEnemyReplacements(game.platoons, dt);
+  tickResourceRegen(game, dt);
 
   tickNmlEncounters(game.platoons, dt, game.events, game.stats);
   tickHomeTrenchRelief(game.platoons, game.assaults);
@@ -426,7 +462,8 @@ export function getStatusText(game: GameState): string {
 export function getArtilleryStatus(game: GameState): string {
   return game.playerBatteries
     .map((b, i) => {
-      const label = `B${i + 1}:${b.ammo}`;
+      const regen = b.state === "idle" && b.ammo < b.maxAmmo && !game.unlimitedResources;
+      const label = `B${i + 1}:${b.ammo}/${b.maxAmmo}${regen ? "↗" : ""}`;
       if (b.state === "idle") return label;
       const sector =
         b.targetZone !== null ? sectorFromX(b.targetZone.x + b.targetZone.w / 2) + 1 : "?";

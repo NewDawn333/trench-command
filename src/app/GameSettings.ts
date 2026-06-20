@@ -6,6 +6,8 @@ import type { AIDifficulty } from "./Difficulty";
 export interface GameSettings {
   showControlHints: boolean;
   aiDifficulty: AIDifficulty;
+  /** Bypass call-up regen, MG pool, and arty regen limits (balance testing). */
+  unlimitedResources: boolean;
 }
 
 export interface HighScores {
@@ -17,6 +19,7 @@ export interface HighScores {
 const DEFAULT_SETTINGS: GameSettings = {
   showControlHints: true,
   aiDifficulty: "balanced",
+  unlimitedResources: false,
 };
 
 const DEFAULT_SCORES: HighScores = {

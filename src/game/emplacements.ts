@@ -1,5 +1,4 @@
 import type { FixedEmplacement, Side } from "../types";
-import { DEV_MODE } from "../types";
 import { LAYOUT } from "../types";
 import { sectorCenterX } from "./battlefield";
 import { layoutEmplacements } from "./layout";
@@ -29,7 +28,7 @@ export function placeEmplacementInSector(
   sector: number,
   type: "mg" | "pillbox",
 ): FixedEmplacement | null {
-  if (!DEV_MODE && type === "mg" && emplacements.filter((e) => e.side === side && e.sector === sector && e.type === "mg").length >= 4) {
+  if (emplacements.some((e) => e.side === side && e.sector === sector && e.type === type)) {
     return null;
   }
   const emp = createEmplacement(side, sector, type);

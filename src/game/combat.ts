@@ -8,6 +8,7 @@ import type {
   Side,
   Tracer,
 } from "../types";
+import { ARTY_SHELL_REGEN_SEC } from "./ResourceConfig";
 import type { MissionStats } from "../app/MissionStats";
 import { recordCasualtyDamage } from "../app/MissionStats";
 import { FIRE_RANGE, LAYOUT } from "../types";
@@ -53,6 +54,7 @@ export function createPlayerBatteries(): ArtilleryBattery[] {
     shellTimer: 0,
     aimDelay: 6 + i * 2,
     stopDelay: 4 + i,
+    regenTimer: 0,
   }));
 }
 
@@ -68,6 +70,7 @@ export function createEnemyBatteries(): ArtilleryBattery[] {
     shellTimer: 0,
     aimDelay: 8 + i * 3,
     stopDelay: 5,
+    regenTimer: 0,
   }));
 }
 
@@ -319,6 +322,20 @@ export function stopBattery(battery: ArtilleryBattery): void {
   if (battery.state === "idle" || battery.state === "stopping") return;
   battery.state = "stopping";
   battery.stateTimer = battery.stopDelay;
+}
+
+export function tickArtilleryRegen(batteries: ArtilleryBattery[], dt: number): void {
+  for (const b of batteries) {
+    if (b.state !== "idle" || b.ammo >= b.maxAmmo) {
+      b.regenTimer = 0;
+      continue;
+    }
+    b.regenTimer += dt;
+    while (b.regenTimer >= ARTY_SHELL_REGEN_SEC && b.ammo < b.maxAmmo) {
+      b.regenTimer -= ARTY_SHELL_REGEN_SEC;
+      b.ammo += 1;
+    }
+  }
 }
 
 export function tickArtillery(

@@ -81,6 +81,7 @@ function startNewGame(): void {
   game = createGame({
     aiDifficulty: appSettings.aiDifficulty,
     campaignLevel: 1,
+    unlimitedResources: appSettings.unlimitedResources,
   });
   baseline = captureBaseline(game);
   missionEnded = false;

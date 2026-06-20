@@ -58,6 +58,8 @@ export interface ArtilleryBattery {
   shellTimer: number;
   aimDelay: number;
   stopDelay: number;
+  /** Accumulator toward next shell when idle and below max ammo. */
+  regenTimer: number;
 }
 
 export interface ShellImpact {
@@ -129,8 +131,8 @@ export const CONFIG: GameConfig = {
   replacementRate: 0.08,
 };
 
-/** Dev mode: uncapped reserves, emplacements, and assault thresholds. */
-export const DEV_MODE = true;
+/** Dev mode: uncapped assault thresholds and reinforcements (resources use per-game unlimited flag). */
+export const DEV_MODE = false;
 
 /** Unified march speed for trench, staging, lateral, and NML movement. */
 export const PLATOON_MOVE_SPEED = 16;

@@ -1,48 +1,60 @@
 # Trench Command — Roadmap
 
-**Current:** v0.5 — AI difficulty, main menu, casualty chart.
+**Current:** v0.6 Phase 1 — limited resources (call-up regen, arty regen, MG pool).
 
-**Next release:** **v0.6** — limited mode: effectiveness, regen resources, movable MGs (see troop systems spec below).
-
-**Deferred:** v0.4 campaign ladder (still valuable after v0.6 makes missions matter).
+**Next:** v0.6 Phase 2 — effectiveness system (constants locked below).
 
 ---
 
-## What to build next (from v0.5)
+## What to build next (from v0.6 Phase 1)
 
-**Priority shift:** Ship **v0.6 troop systems** before v0.4 campaign. Limited mode needs effectiveness + regen economics before procedural levels add meaning.
+### v0.6 Phase 1 — Resources ✅
 
-### v0.6 Phase 1 — Resources & `DEV_MODE` off
+- [x] `DEV_MODE` off — assault thresholds & defeat active
+- [x] **Per-sector call-up regen** — **30s**; bright green when ready; countdown on button
+- [x] **Artillery regen** — **1 shell / 8s** when idle; `ammo/max ↗` in counter
+- [x] **MG pool** — **4** total; one per sector; no regen
+- [x] Settings toggle: **Unlimited resources** (testing)
+- [x] Defeat when no player front/staging platoons remain
 
-- [ ] Flip `DEV_MODE` → `false` (or menu toggle: Unlimited / Limited for testing)
-- [ ] **Per-sector call-up regen bar** — calling up resets timer; button fills; **bright green** when ready (~40–50s)
-- [ ] **Artillery regen** — idle batteries recover shells over time; show `ammo / max` + regen hint in status counter
-- [ ] Defeat when no player front/staging platoons remain
+### v0.6 Phase 2 — Effectiveness (next)
 
-### v0.6 Phase 2 — Effectiveness (replaces passive morale)
+Constants from design review:
 
-- [ ] Rename `Platoon.morale` → `effectiveness` (0–150, UI label “Eff”)
-- [ ] **Combat & movement multipliers** from effectiveness (see spec below)
-- [ ] **Loss drivers:** low headcount, idle time on front, arty barrage in sector
-- [ ] **Gain drivers:** staging recovery, repulsed assault, successful assault (sector ±1)
-- [ ] **150% surge** when already at 100% and assault succeeds nearby; decays back to 100
-- [ ] **Enemy-trench invaders:** immune to effectiveness decay (still rout at 0 strength)
+| Rule | Value |
+|------|--------|
+| Surge decay (150% → 100%) | **120 seconds** |
+| Headcount effectiveness loss | Only when strength **< 20%** of max |
+| Invader floor in enemy trench | Effectiveness cannot drop **below 50%** from decay |
+| Fresh call-up starting eff | ~70% (implement in Phase 2) |
+| Staging recovery | 8s settle, then +4/sec to 100 |
 
-### v0.6 Phase 3 — MG order of battle
+- [ ] Rename `morale` → `effectiveness` (0–150)
+- [ ] Combat/movement multipliers (50–100 flat, 100–150 bonus, 0–50 penalty to 10%)
+- [ ] Loss: idle front, arty barrage, low headcount (<20%)
+- [ ] Gain: staging recovery, repulsed assault, successful assault (+ neighbor), surge decay 120s
 
-- [ ] **Level MG pool** — fixed count per mission (e.g. 4–6); no regen this build
-- [ ] **Relocate MG** — select emplacement on map → tap destination sector trench
-- [ ] MGs unaffected by effectiveness; pillboxes stay fixed
+### v0.6 Phase 2b — Enemy effectiveness (later, two steps)
+
+1. **Apply mechanism** — enemy platoons use same effectiveness tick/gain/loss rules as player
+2. **AI management** — AI rotates tired platoons to staging, avoids barrage sectors, times assaults on player low-eff sectors
+
+Do **not** bundle 2b with Phase 2 player implementation.
+
+### v0.6 Phase 3 — MG relocation
+
+- [ ] Select MG on map → tap destination sector trench
+- [ ] Move cooldown ~15s
 
 ### v0.6 Phase 4 — Combat polish
 
-- [ ] Tune rifle vs melee overlap so assaults feel lethal but not instant wipe
-- [ ] Optional platoon effectiveness badge on sprite (color or small bar)
-- [ ] Status toasts: “Sector 3 under barrage”, “Platoon rallied in staging”
+- [ ] Tune rifle vs melee overlap
+- [ ] Optional effectiveness badge on sprites
+- [ ] Status toasts
 
 ### Then v0.4 — Campaign ladder
 
-(Unchanged from below — unlock levels, scale enemy, procedural maps.)
+(Unchanged — unlock levels, scale enemy, procedural maps.)
 
 ### Quick wins (anytime)
 
@@ -92,7 +104,7 @@ Apply to: trench rifle DPS, NML encounter damage rate, melee exchange rate, `PLA
 
 | Cause | Mechanism (proposed) |
 |-------|----------------------|
-| **Low headcount** | Passive drain while in combat states: `-k × (1 - strength/maxStrength) × dt` |
+| **Low headcount** | Passive drain only when strength **< 20%** of max |
 | **Idle on front** | `timeOnFront` already tracked — after **~90s** without move/assault: `-0.3/sec` until moved or relieved |
 | **Arty barrage** | Sector flagged **under barrage** while any battery `firing` on that sector — platoons in `front`/`staging` in sector: `-1.5/sec` |
 
@@ -107,14 +119,14 @@ Apply to: trench rifle DPS, NML encounter damage rate, melee exchange rate, `PLA
 
 #### Special rules
 
-- **Enemy-trench invaders** (`isInvader`): **no effectiveness decay** from idle or barrage while holding opponent trench. Still lose eff from low headcount if we keep that rule — recommend **headcount-only** loss for invaders.
+- **Enemy-trench invaders** (`isInvader`): **no idle/barrage decay**; effectiveness floor **50%** from decay (headcount loss still applies below 20% strength)
 - **Fresh call-ups** spawn at **~70%** effectiveness (not full); staging recovery brings them up.
-- **Surge decay:** above 100% decays **-2/sec** back toward 100 unless renewed by another assault event.
+- **Surge decay:** above 100% decays linearly to 100 over **120 seconds** unless renewed by another assault event.
 
 ### Call-up regen (per sector)
 
 - Each sector has `callUpRegen: 0…1` (or seconds remaining).
-- **Call up** → spawn platoon in staging → reset regen to **0**; regen duration **~45s** (tune in playtest).
+- **Call up** → spawn platoon in staging → reset regen to **0**; regen duration **30s**.
 - UI: button background fill left→right; at **1.0** stroke/fill **bright green** `#6dff6d`; label “+ Call Up”.
 - No global infinite pool — `reservesAvailableForSector` = regen complete.
 - Enemy AI uses same regen rules per sector (fair fight).
@@ -127,7 +139,7 @@ Apply to: trench rifle DPS, NML encounter damage rate, melee exchange rate, `PLA
 
 ### MG order of battle
 
-- Mission start: **`mgPool`** (player) from level config — default **4** for skirmish map.
+- Mission start: **`mgPool`** = **4** for skirmish map.
 - Placing MG decrements pool; **no regen** this build.
 - **Move:** tap MG emplacement → tap target sector trench band (same as lateral move UX). Cooldown **~15s** before same MG moves again.
 - Enemy MGs: fixed at level setup; AI relocation deferred.
@@ -291,7 +303,7 @@ v0.1  →  playable greybox
 v0.2  →  audio + sprites
 v0.3  →  main menu + mission end flow + casualty chart
 v0.5  →  AI difficulty
-v0.6  →  limited mode: effectiveness, regen, MGs  ← NEXT
+v0.6  →  limited mode: regen + MG pool  ← Phase 1 done; Phase 2 effectiveness next
 v0.4  →  campaign ladder + procedural maps
 v0.7+ →  fog of war, then multiplayer experiments
 ```
@@ -313,4 +325,4 @@ v0.7+ →  fog of war, then multiplayer experiments
 
 ---
 
-*Last updated: v0.6 troop systems spec — next focus Phase 1 (regen + DEV_MODE off).*
+*Last updated: v0.6 Phase 1 shipped — Phase 2 effectiveness next.*

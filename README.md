@@ -2,7 +2,7 @@
 
 Real-time WW1 trench sector commander — mass troops, bracket no man's land with artillery, and assault sector by sector until the enemy line is yours.
 
-**v0.5** — AI difficulty (Defensive / Balanced / Aggressive). **v0.3** added main menu, casualty tracking, and charts.
+**v0.6** — Limited mode: 30s call-up regen per sector, arty regen, 4 MG pool. **v0.5** added AI difficulty.
 
 See [ROADMAP.md](./ROADMAP.md) and [docs/ANDROID.md](./docs/ANDROID.md).
 
