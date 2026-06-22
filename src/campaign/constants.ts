@@ -1,6 +1,18 @@
 /** Slow trickle — tune up after playtesting (not infinite). */
 export const RECRUIT_TRICKLE_PER_TURN = 8;
 
+/** Bonus recruits added to army pool after a battalion tactical victory. */
+export const VICTORY_RECRUIT_BONUS = 20;
+
+/** Recruits required to approve a destroyed-company rebuild. */
+export const REBUILD_RECRUIT_COST = 60;
+
+/** Riflemen requested per replenishment for a depleted company. */
+export const REPLENISH_RECRUIT_CHUNK = 40;
+
+/** Riflemen recovered per turn for garrisoned battalion-reserve companies. */
+export const GARRISON_RECOVERY_PER_TURN = 6;
+
 /** v1 placeholder objective on the Amiens sector map. */
 export const CAMPAIGN_OBJECTIVE_LABEL = "River Line";
 

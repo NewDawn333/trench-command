@@ -61,11 +61,21 @@ export interface Army {
   divisions: Division[];
 }
 
+export interface ReinforcementRequest {
+  id: string;
+  companyId: string;
+  companyLabel: string;
+  battalionLabel: string;
+  menRequested: number;
+  kind: "rebuild" | "replenish";
+  requestedTurn: number;
+}
+
 export interface CampaignEvent {
   turn: number;
-  kind: "counter_push";
+  kind: "counter_push" | "reinforcement" | "rebuild_complete";
   message: string;
-  battalionId: string;
+  battalionId?: string;
 }
 
 export interface CampaignState {
@@ -81,6 +91,7 @@ export interface CampaignState {
   recruitTricklePerTurn: number;
   army: Army;
   events: CampaignEvent[];
+  reinforcementRequests: ReinforcementRequest[];
 }
 
 /** Enemy order of battle for one battalion-sized tactical map. */

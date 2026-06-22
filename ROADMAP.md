@@ -1,8 +1,8 @@
 # Trench Command — Roadmap
 
-**Current:** v0.8.0 — campaign OOB v3 (division → brigade → battalion tactical), 30-man platoons, overextension events.
+**Current:** v0.8.1 — Phase 6 recruits & rebuild pipeline.
 
-**Next:** Campaign **Phase 6** (v0.8.1) — recruits & rebuild pipeline.
+**Next:** Campaign **Phase 7** (v0.8.2) — army strategic map.
 
 **Full campaign spec:** [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md) · OOB detail: [`docs/OOB.md`](docs/OOB.md)
 
@@ -19,8 +19,8 @@
 | v0.7.3 | 4 | Per-map templates (terrain, arc, defenses) | ✅ |
 | v0.8.0 | 5 | Overextension, counter-push events | ✅ |
 | **v0.8.0** | **5b** | **Historical OOB v3:** 30-man platoons, brigade map, battalion = 1 tactical map, save v3, launcher | ✅ |
-| v0.8.1 | 6 | Recruit pool, rebuild destroyed companies | **Next** |
-| v0.8.2 | 7 | Army map (10 divisions, 3 playable) | |
+| **v0.8.1** | **6** | Recruit pool, reinforcement requests, army HQ, rebuild pipeline | ✅ |
+| v0.8.2 | 7 | Army map (10 divisions, 3 playable) | **Next** |
 | v0.9.0 | 8 | Objective win/fail, campaign polish | |
 | v1.0.0 | 9 | Android APK (Capacitor, offline) | |
 

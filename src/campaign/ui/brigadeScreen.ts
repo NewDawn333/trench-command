@@ -2,7 +2,12 @@ import type { CampaignState } from "../types";
 import { findBrigade, playableDivision } from "../company";
 import { battalionBriefingLines } from "../companyDeployment";
 import { getCampaignSummary } from "../CampaignSave";
-import { battalionAvailableForMission } from "../display";
+import {
+  companyCanRequestReinforcements,
+  hasPendingRequest,
+  reinforcementNeed,
+} from "../recruits";
+import { companyStatusLabel, battalionAvailableForMission } from "../display";
 import { companyAvailableForTransfer } from "../transfers";
 import {
   briefingIntelLines,
@@ -10,7 +15,7 @@ import {
   estimateEnemyStrength,
   templateDisplayName,
 } from "../../mission/MissionSetup";
-import type { Battalion, Company } from "../types";
+import type { Battalion, Brigade, Company } from "../types";
 import { renderBrigadeMap } from "./brigadeMapView";
 
 export interface BrigadeScreenHandlers {
@@ -19,6 +24,7 @@ export interface BrigadeScreenHandlers {
   onBriefingBackOut: (battalionId: string) => void;
   onBriefingCommit: (battalionId: string) => void;
   onTransfer: (companyId: string, targetBattalionId: string) => void;
+  onRequestReinforcement: (companyId: string) => void;
 }
 
 let bound = false;
@@ -49,6 +55,41 @@ function renderTransferTargets(state: CampaignState, brigadeId: string, company:
       <span class="briefing-transfer-label">Relocate company (1 turn)</span>
       <div class="briefing-transfer-actions">${options}</div>
     </div>
+  `;
+}
+
+function renderReinforcementPanel(state: CampaignState, bde: Brigade): string {
+  const companies = bde.battalions.flatMap((bn) =>
+    bn.companies.map((c) => ({ company: c, battalion: bn })),
+  );
+  const needy = companies.filter(({ company }) => companyCanRequestReinforcements(company));
+  if (needy.length === 0) {
+    return `<p class="brigade-reinforce-hint">All companies at full strength.</p>`;
+  }
+
+  return `
+    <ul class="brigade-reinforce-list">
+      ${needy
+        .map(({ company, battalion }) => {
+          const need = reinforcementNeed(company);
+          const pending = hasPendingRequest(state, company.id);
+          const label =
+            need.kind === "rebuild"
+              ? `Request rebuild (${need.men} recruits)`
+              : `Request reinforcements (${need.men} riflemen)`;
+          return `
+        <li class="brigade-reinforce-item">
+          <span class="brigade-reinforce-name">${company.label} · ${battalion.label}</span>
+          <span class="brigade-reinforce-meta">${company.strength}/${company.maxStrength} · ${companyStatusLabel(company, state.turn)}</span>
+          ${
+            pending
+              ? `<span class="brigade-reinforce-pending">Pending at army headquarters</span>`
+              : `<button type="button" class="btn btn-transfer" data-request-company="${company.id}">${label}</button>`
+          }
+        </li>`;
+        })
+        .join("")}
+    </ul>
   `;
 }
 
@@ -111,11 +152,18 @@ export function renderBrigadeScreen(state: CampaignState): void {
   const events = document.getElementById("brigade-events");
   const summary = document.getElementById("brigade-summary");
   const title = document.getElementById("brigade-title");
+  const reinforcements = document.getElementById("brigade-reinforcements");
   if (!bde || !map || !summary || !title) return;
 
   title.textContent = bde.label;
   summary.textContent = `${getCampaignSummary(state)} · ${bde.threeSectionFront ? "3-section front" : "4-section front"}`;
   map.innerHTML = renderBrigadeMap(bde, state.turn, state.objectiveLabel);
+  if (reinforcements) {
+    reinforcements.innerHTML = `
+      <h2 class="brigade-reinforce-title">Reinforcements</h2>
+      ${renderReinforcementPanel(state, bde)}
+    `;
+  }
   if (events) {
     const brigadeEvents = (state.events ?? []).slice(-5).reverse();
     events.classList.toggle("division-events-empty", brigadeEvents.length === 0);
@@ -136,6 +184,12 @@ export function setupBrigadeScreen(handlers: BrigadeScreenHandlers): void {
     const target = (e.target as HTMLElement).closest("[data-battalion-id]") as HTMLElement | null;
     if (!target?.dataset.battalionId) return;
     openBriefing(handlers.getState(), target.dataset.battalionId);
+  });
+
+  document.getElementById("brigade-reinforcements")?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest("[data-request-company]") as HTMLElement | null;
+    if (!btn?.dataset.requestCompany) return;
+    handlers.onRequestReinforcement(btn.dataset.requestCompany);
   });
 
   document.getElementById("briefing-panel")?.addEventListener("click", (e) => {

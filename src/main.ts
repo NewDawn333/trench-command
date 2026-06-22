@@ -32,6 +32,8 @@ import {
 import { queueCompanyTransfer } from "./campaign/transfers";
 import { refreshDivisionScreen, setupDivisionScreen } from "./campaign/ui/divisionScreen";
 import { refreshBrigadeScreen, setupBrigadeScreen } from "./campaign/ui/brigadeScreen";
+import { refreshArmyScreen, setupArmyScreen } from "./campaign/ui/armyScreen";
+import { approveReinforcementRequest, queueReinforcementRequest } from "./campaign/recruits";
 import { findBattalion, playableDivision } from "./campaign/company";
 import { buildMissionSetup } from "./mission/MissionSetup";
 import { createGameFromMission } from "./mission/campaignMission";
@@ -253,6 +255,20 @@ function goToDivision(): void {
   refreshCampaignMenuButtons();
 }
 
+function goToArmy(): void {
+  campaignState = loadCampaignState();
+  if (!campaignState) return;
+  campaignState.phase = "army";
+  saveCampaignState(campaignState);
+  playMode = null;
+  missionEnded = false;
+  hideOverlay();
+  screen = "army";
+  showScreen("army");
+  refreshArmyScreen(campaignState);
+  refreshCampaignMenuButtons();
+}
+
 function goToBrigade(brigadeId: string): void {
   campaignState = loadCampaignState();
   if (!campaignState) return;
@@ -303,7 +319,20 @@ bindUI(() => game, refreshHUD, input, {
 setupDivisionScreen({
   getState: () => campaignState ?? loadCampaignState()!,
   onMainMenu: goToMenu,
+  onOpenArmy: goToArmy,
   onSelectBrigade: (brigadeId) => goToBrigade(brigadeId),
+});
+
+setupArmyScreen({
+  getState: () => campaignState ?? loadCampaignState()!,
+  onBackToDivision: goToDivision,
+  onApproveRequest: (requestId) => {
+    if (!campaignState) return;
+    if (approveReinforcementRequest(campaignState, requestId)) {
+      campaignState = loadCampaignState();
+      if (campaignState) refreshArmyScreen(campaignState);
+    }
+  },
 });
 
 setupBrigadeScreen({
@@ -321,6 +350,13 @@ setupBrigadeScreen({
   onTransfer: (companyId, targetBattalionId) => {
     if (!campaignState || !campaignState.activeBrigadeId) return;
     if (queueCompanyTransfer(campaignState, campaignState.activeBrigadeId, companyId, targetBattalionId)) {
+      campaignState = loadCampaignState();
+      if (campaignState) refreshBrigadeScreen(campaignState);
+    }
+  },
+  onRequestReinforcement: (companyId) => {
+    if (!campaignState) return;
+    if (queueReinforcementRequest(campaignState, companyId)) {
       campaignState = loadCampaignState();
       if (campaignState) refreshBrigadeScreen(campaignState);
     }

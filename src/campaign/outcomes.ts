@@ -10,6 +10,7 @@ import {
 import { EARLY_RETREAT_STRENGTH_PENALTY, REDEPLOY_COOLDOWN_TURNS } from "./constants";
 import { recomputeVulnerableFlags, resolveOverextension } from "./overextension";
 import { resolvePendingTransfers } from "./transfers";
+import { awardVictoryRecruits, tickReinforcementPipeline } from "./recruits";
 import type { CampaignState, Company, Battalion } from "./types";
 import type { MissionOutcome } from "../mission/MissionOutcome";
 import { saveCampaignState } from "./CampaignSave";
@@ -37,6 +38,7 @@ export function advanceCampaignTurn(state: CampaignState): void {
   state.turn += 1;
   resolvePendingTransfers(state);
   tickRedeployCooldowns(state);
+  tickReinforcementPipeline(state);
   state.recruitPool += state.recruitTricklePerTurn;
 }
 
@@ -122,6 +124,7 @@ export function applyMissionOutcomeToCampaign(
   if (outcome.result === "victory") {
     bn.controller = "player";
     state.army.objectiveProgress = Math.min(100, state.army.objectiveProgress + 4);
+    awardVictoryRecruits(state);
     resolveOverextension(state, bn.brigadeId);
   } else if (outcome.result === "defeat" && outcome.companyStrengthAfter <= 0) {
     bn.controller = "contested";
@@ -150,6 +153,7 @@ export function normalizeCampaignState(state: CampaignState): CampaignState {
     }
   }
   if (!state.events) state.events = [];
+  if (!state.reinforcementRequests) state.reinforcementRequests = [];
   if (state.activeBrigadeId === undefined) state.activeBrigadeId = null;
   for (const bde of div.brigades) {
     recomputeVulnerableFlags(state, bde.id);

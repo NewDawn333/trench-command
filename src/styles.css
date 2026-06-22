@@ -582,6 +582,100 @@ button.front-slice--clickable:hover {
   color: #a8a898;
 }
 
+.brigade-reinforcements {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #4a5244;
+  background: rgba(20, 22, 18, 0.55);
+}
+
+.brigade-reinforce-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.brigade-reinforce-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.brigade-reinforce-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.brigade-reinforce-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.brigade-reinforce-meta {
+  font-size: 0.75rem;
+  color: #989890;
+}
+
+.brigade-reinforce-pending {
+  font-size: 0.75rem;
+  color: #c4a860;
+}
+
+.army-recruit-pool {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: #a8c878;
+}
+
+.army-requests {
+  margin-top: 12px;
+}
+
+.army-request-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.army-request {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #4a5244;
+  background: #1e211c;
+}
+
+.army-request__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.army-request__unit {
+  font-size: 0.78rem;
+  color: #989890;
+}
+
+.army-request__detail {
+  margin: 6px 0 10px;
+  font-size: 0.8rem;
+  color: #b0b0a8;
+}
+
+.army-empty {
+  margin: 0;
+  color: #989890;
+  font-size: 0.85rem;
+}
+
 .front-map-host {
   min-height: 320px;
 }

@@ -87,5 +87,6 @@ export function createNewCampaign(): CampaignState {
       divisions: [createPlayableDivision()],
     },
     events: [],
+    reinforcementRequests: [],
   };
 }

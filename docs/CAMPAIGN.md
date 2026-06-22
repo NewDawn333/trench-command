@@ -260,21 +260,21 @@ Work top-to-bottom: each phase is shippable and playtestable.
 
 ---
 
-### Phase 6 — Recruits & rebuild (v0.8.1) — **NEXT**
+### Phase 6 — Recruits & rebuild (v0.8.1) ✅
 
 **Goal:** Division ↔ army resource loop.
 
-- [ ] Recruit pool trickle (+ bonus on battalion victories)
-- [ ] Brigade screen: **Request reinforcements** (queue per company)
-- [ ] Army screen (minimal): approve requests, split pool across divisions (1 playable division for now)
-- [ ] Destroyed company **rebuild timer** when recruits assigned
-- [ ] Depleted companies recover strength slowly if garrisoned (no battle) — optional tune
+- [x] Recruit pool trickle (+ bonus on battalion victories)
+- [x] Brigade screen: **Request reinforcements** per company
+- [x] Army headquarters screen: approve requests, spend recruit pool
+- [x] Destroyed company **rebuild timer** when recruits assigned
+- [x] Garrisoned battalion-reserve companies recover strength slowly each turn
 
 **Exit:** Losing a company hurts for many steps; player manages pipeline.
 
 ---
 
-### Phase 7 — Army map (v0.8.2)
+### Phase 7 — Army map (v0.8.2) — **NEXT**
 
 **Goal:** Zoom out scale; still 1 campaign.
 

@@ -12,7 +12,7 @@
       <section id="screen-menu" class="screen screen-menu">
         <div class="menu-card">
           <h1 class="menu-title">Trench Command</h1>
-          <p class="menu-tagline">Real-time sector assault · v0.8.0</p>
+          <p class="menu-tagline">Real-time sector assault · v0.8.1</p>
           <p id="menu-scores" class="menu-scores"></p>
           <p id="campaign-hint" class="campaign-hint"></p>
           <div class="difficulty-picker">
@@ -73,7 +73,10 @@
               <h1 id="division-title">1st Division</h1>
               <p id="division-summary" class="division-summary"></p>
             </div>
-            <button id="btn-division-menu" type="button" class="btn">Main Menu</button>
+            <div class="division-header-actions">
+              <button id="btn-division-army" type="button" class="btn">Army headquarters</button>
+              <button id="btn-division-menu" type="button" class="btn">Main Menu</button>
+            </div>
           </header>
           <p class="division-hint">Division front — tap a brigade sector. Each brigade holds 4 battalions; one battalion = one tactical map (line + assault companies).</p>
           <div id="division-events" class="division-events-wrap division-events-empty"></div>
@@ -95,9 +98,28 @@
           <p class="division-hint">Brigade front — tap a battalion counter to assault. 8 platoons × 30 riflemen per company; line company holds the trench, assault company is call-up reserve.</p>
           <div id="brigade-events" class="division-events-wrap division-events-empty"></div>
           <div id="brigade-map" class="front-map-host"></div>
+          <div id="brigade-reinforcements" class="brigade-reinforcements"></div>
           <div id="briefing-panel" class="briefing-panel hidden" role="dialog" aria-modal="true">
             <div id="briefing-content" class="briefing-card"></div>
           </div>
+        </div>
+      </section>
+
+      <section id="screen-army" class="screen screen-division hidden">
+        <div class="division-shell">
+          <header class="division-header">
+            <div>
+              <h1 id="army-title">Army headquarters</h1>
+              <p id="army-summary" class="division-summary"></p>
+              <p id="army-recruit-pool" class="army-recruit-pool"></p>
+            </div>
+            <div class="division-header-actions">
+              <button id="btn-army-division" type="button" class="btn">Division map</button>
+            </div>
+          </header>
+          <p class="division-hint">Approve reinforcement requests from the brigade front. Recruits trickle in each turn; battalion victories add to the pool.</p>
+          <div id="army-events" class="division-events-wrap"></div>
+          <div id="army-requests" class="army-requests"></div>
         </div>
       </section>
 

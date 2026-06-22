@@ -7,6 +7,7 @@ import { renderDivisionMap } from "./divisionMapView";
 export interface DivisionScreenHandlers {
   getState: () => CampaignState;
   onMainMenu: () => void;
+  onOpenArmy: () => void;
   onSelectBrigade: (brigadeId: string) => void;
 }
 
@@ -52,6 +53,7 @@ export function setupDivisionScreen(handlers: DivisionScreenHandlers): void {
   bound = true;
 
   document.getElementById("btn-division-menu")?.addEventListener("click", handlers.onMainMenu);
+  document.getElementById("btn-division-army")?.addEventListener("click", handlers.onOpenArmy);
 
   document.getElementById("division-map")?.addEventListener("click", (e) => {
     const target = (e.target as HTMLElement).closest("[data-brigade-id]") as HTMLElement | null;
