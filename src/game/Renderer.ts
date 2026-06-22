@@ -2,14 +2,15 @@ import type { GameState } from "./Game";
 import { mgAvailableForSector, reservesAvailableForSector } from "./Game";
 import { countMgsInSector } from "./emplacements";
 import { CONFIG, LAYOUT } from "../types";
+import type { MissionLayout } from "../mission/MissionLayout";
+import { trenchLineY } from "../mission/MissionLayout";
 import { CALL_UP_REGEN_SEC } from "./ResourceConfig";
-import { callUpButtonRect, mgButtonRect, sectorCenterX, sectorWidth } from "./battlefield";
+import { callUpButtonRect, mgButtonRect, sectorCenterX, sectorWidth, sectorX } from "./battlefield";
 import {
   drawEmplacementSprite,
   drawPlatoonSprite,
   drawShellImpact,
   drawTracerLine,
-  drawTrenchParapet,
 } from "../render/sprites";
 
 export class Renderer {
@@ -58,10 +59,10 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, CONFIG.mapWidth, CONFIG.mapHeight);
 
-    this.drawTerrain(ctx);
+    this.drawTerrain(ctx, game.missionLayout);
     this.drawSectors(ctx, game);
     this.drawArtilleryZones(ctx, game);
-    this.drawTrenches(ctx);
+    this.drawTrenches(ctx, game.missionLayout);
     this.drawEmplacements(ctx, game);
     this.drawPlatoons(ctx, game);
     this.drawEffects(ctx, game);
@@ -70,54 +71,104 @@ export class Renderer {
     this.drawLabels(ctx);
   }
 
-  private drawTerrain(ctx: CanvasRenderingContext2D): void {
+  private terrainColor(kind: MissionLayout["terrain"][number]): string {
+    switch (kind) {
+      case "ridge":
+        return "#524a38";
+      case "mud":
+        return "#3a3428";
+      default:
+        return "#4a3d28";
+    }
+  }
+
+  private drawTerrain(ctx: CanvasRenderingContext2D, layout: MissionLayout): void {
     ctx.fillStyle = "#3d4a32";
-    ctx.fillRect(0, 0, CONFIG.mapWidth, LAYOUT.nmlTop);
-    ctx.fillStyle = "#4a3d28";
-    ctx.fillRect(0, LAYOUT.nmlTop, CONFIG.mapWidth, LAYOUT.nmlBottom - LAYOUT.nmlTop);
+    ctx.fillRect(0, 0, CONFIG.mapWidth, layout.nmlTop);
+    const w = sectorWidth();
+    for (let s = 0; s < CONFIG.sectorCount; s++) {
+      ctx.fillStyle = this.terrainColor(layout.terrain[s] ?? "flat");
+      ctx.fillRect(sectorX(s), layout.nmlTop, w, layout.nmlBottom - layout.nmlTop);
+      if (layout.wireSectors.includes(s)) {
+        ctx.strokeStyle = "rgba(180,160,120,0.45)";
+        ctx.lineWidth = 1;
+        for (let row = 0; row < 3; row++) {
+          const y = layout.nmlTop + 24 + row * 36;
+          ctx.beginPath();
+          ctx.moveTo(sectorX(s) + 8, y);
+          ctx.lineTo(sectorX(s) + w - 8, y);
+          ctx.stroke();
+        }
+      }
+    }
     ctx.fillStyle = "#2f3828";
-    ctx.fillRect(0, LAYOUT.nmlBottom, CONFIG.mapWidth, CONFIG.mapHeight - LAYOUT.nmlBottom);
+    ctx.fillRect(0, layout.nmlBottom, CONFIG.mapWidth, CONFIG.mapHeight - layout.nmlBottom);
 
     ctx.fillStyle = "rgba(255,255,255,0.04)";
     for (let i = 0; i < 40; i++) {
       const x = (i * 97) % CONFIG.mapWidth;
-      const y = LAYOUT.nmlTop + ((i * 53) % (LAYOUT.nmlBottom - LAYOUT.nmlTop));
+      const y = layout.nmlTop + ((i * 53) % Math.max(1, layout.nmlBottom - layout.nmlTop));
       ctx.beginPath();
       ctx.arc(x, y, 2 + (i % 3), 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  private drawTrenches(ctx: CanvasRenderingContext2D): void {
-    const drawLine = (y: number, color: string, parapet: string, label: string, ly: number) => {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      for (let x = 0; x <= CONFIG.mapWidth; x += 40) {
-        ctx.lineTo(x, y + Math.sin(x * 0.04) * 3);
+  private drawArcTrench(
+    ctx: CanvasRenderingContext2D,
+    side: "player" | "enemy",
+    color: string,
+    parapet: string,
+  ): void {
+    const w = sectorWidth();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let s = 0; s < CONFIG.sectorCount; s++) {
+      const x0 = sectorX(s);
+      const x1 = x0 + w;
+      const y0 = trenchLineY(side, s);
+      const y1 = trenchLineY(side, s + 1 >= CONFIG.sectorCount ? s : s + 1);
+      if (s === 0) ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, (y0 + y1) / 2);
+    }
+    ctx.stroke();
+    for (let s = 0; s < CONFIG.sectorCount; s++) {
+      const x0 = sectorX(s);
+      const y = trenchLineY(side, s);
+      ctx.fillStyle = parapet;
+      for (let x = x0; x < x0 + w; x += 24) {
+        const h = 6 + Math.sin(x * 0.08) * 2;
+        ctx.fillRect(x, y - h, 20, h);
       }
-      ctx.stroke();
-      drawTrenchParapet(ctx, y, parapet);
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.font = "11px system-ui";
-      ctx.fillText(label, 8, ly);
-    };
+    }
+  }
 
-    drawLine(LAYOUT.enemyTrenchY, "#6b4a4a", "#5a4038", "Enemy trench", LAYOUT.enemyTrenchY - 6);
-    drawLine(LAYOUT.playerTrenchY, "#4a5a6b", "#3a4858", "Your trench", LAYOUT.playerTrenchY + 14);
+  private drawTrenches(ctx: CanvasRenderingContext2D, layout: MissionLayout): void {
+    this.drawArcTrench(ctx, "enemy", "#6b4a4a", "#5a4038");
+    this.drawArcTrench(ctx, "player", "#4a5a6b", "#3a4858");
+
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "11px system-ui";
+    ctx.fillText("Enemy trench", 8, trenchLineY("enemy", 0) - 6);
+    ctx.fillText("Your trench", 8, trenchLineY("player", 0) + 14);
     ctx.fillStyle = "rgba(200,180,140,0.25)";
     ctx.font = "12px system-ui";
-    ctx.fillText("NO MAN'S LAND", CONFIG.mapWidth / 2 - 52, (LAYOUT.nmlTop + LAYOUT.nmlBottom) / 2);
+    ctx.fillText("NO MAN'S LAND", CONFIG.mapWidth / 2 - 52, (layout.nmlTop + layout.nmlBottom) / 2);
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.font = "10px system-ui";
+    ctx.fillText(layout.displayName, CONFIG.mapWidth - 120, 16);
   }
 
   private drawSectors(ctx: CanvasRenderingContext2D, game: GameState): void {
     const w = sectorWidth();
     for (const s of game.sectors) {
+      const enemyY = trenchLineY("enemy", s.index);
+      const playerY = trenchLineY("player", s.index);
       if (s.controller === "player") ctx.fillStyle = "rgba(70,120,180,0.15)";
       else if (s.controller === "contested") ctx.fillStyle = "rgba(180,140,60,0.12)";
       else ctx.fillStyle = "transparent";
-      ctx.fillRect(s.x, LAYOUT.enemyTrenchY - 20, w, LAYOUT.playerTrenchY - LAYOUT.enemyTrenchY + 40);
+      ctx.fillRect(s.x, enemyY - 20, w, playerY - enemyY + 40);
 
       if (game.selectedSector === s.index) {
         ctx.strokeStyle = "rgba(255,220,100,0.8)";

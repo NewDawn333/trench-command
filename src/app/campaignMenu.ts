@@ -1,38 +1,40 @@
 import {
   campaignContinueAvailable,
-  CAMPAIGN_OBJECTIVE_LABEL,
-  ensureCampaignSaveSlot,
-  hasCampaignSave,
+  getCampaignSummary,
+  loadCampaignState,
+  startCampaign,
 } from "../campaign/CampaignSave";
+import type { CampaignState } from "../campaign/types";
 
-export function initCampaignMenuSlot(): void {
-  ensureCampaignSaveSlot();
+export function initCampaignMenu(): void {
   refreshCampaignMenuButtons();
 }
 
 export function refreshCampaignMenuButtons(): void {
-  const campaignBtn = document.getElementById("btn-campaign") as HTMLButtonElement | null;
   const continueBtn = document.getElementById("btn-continue") as HTMLButtonElement | null;
   const hint = document.getElementById("campaign-hint");
-
-  if (campaignBtn) {
-    campaignBtn.disabled = true;
-    campaignBtn.title = "Division map arrives in v0.7";
-  }
+  const state = loadCampaignState();
 
   if (continueBtn) {
     const canContinue = campaignContinueAvailable();
     continueBtn.disabled = !canContinue;
-    continueBtn.title = canContinue
-      ? "Resume campaign"
-      : hasCampaignSave()
-        ? "Start a campaign in v0.7"
-        : "No campaign in progress";
+    continueBtn.title = canContinue ? "Resume division front" : "Start a campaign first";
   }
 
   if (hint) {
-    hint.textContent = hasCampaignSave()
-      ? `Campaign objective: ${CAMPAIGN_OBJECTIVE_LABEL} · division front unlocks in v0.7`
-      : "";
+    hint.textContent =
+      state && state.phase !== "inactive"
+        ? getCampaignSummary(state)
+        : "Campaign · BEF Fourth Army · Objective: River Line";
   }
+}
+
+export function handleCampaignStart(): CampaignState {
+  return startCampaign();
+}
+
+export function handleCampaignContinue(): CampaignState | null {
+  const state = loadCampaignState();
+  if (!state || state.phase === "inactive") return null;
+  return state;
 }

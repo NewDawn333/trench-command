@@ -10,15 +10,15 @@
 
 | Topic | Decision |
 |-------|----------|
-| **Historical frame** | British Expeditionary Force, **Amiens sector, 1918** (Hundred Days). Fictional division/company names until systems prove out. |
-| **Layers** | Army (10 divisions, 3 playable) → Division (3 subsectors) → Company (1 tactical map) → Platoon (in-mission). |
-| **Enemy on campaign map** | **Static** — each company/subsector has defined enemy strength; no background probing every turn. |
+| **Historical frame** | British Expeditionary Force, **Amiens sector, 1918** (Hundred Days). Fictional unit names until systems prove out. |
+| **Layers** | Army (future) → Corps (future) → **Division** (3 brigades) → **Brigade** (4 battalions) → **Battalion** (1 tactical map) → **Company** → **Platoon** (30 men). |
+| **Enemy on campaign map** | **Static** — each battalion has defined enemy OOB; no background probing every turn. |
 | **Enemy pressure** | **Event-driven** — overextension / weak garrison triggers counter-push; map updates to show enemy control. |
-| **Tactical variety** | Each company map differs in **enemy OOB, terrain, defenses, trench arc** — not one recycled skirmish. |
-| **Mission commit** | Player may **back out before engaging**; downside = **redeploy delay** before that company can fight elsewhere. |
-| **Casualties** | Company **strength persists** across missions. **Total loss** destroys the company; rebuild from **recruits over time**. Weakened subsectors until backfilled. |
-| **Reinforcements** | **Division commander** requests men → **Army general** (player at army layer) allocates recruit pool to subsectors/companies. |
-| **Victory** | **Objective-based** (e.g. reach Somme / Péronne corridor) — exact historical wording TBD; one clear primary goal for v1. |
+| **Tactical variety** | Each battalion map differs in **enemy OOB, terrain, defenses, trench arc**. |
+| **Mission commit** | Player may **back out before engaging**; downside = **redeploy delay** before that battalion can fight again. |
+| **Casualties** | Company **strength persists** across missions. **Total loss** destroys the company; rebuild from **recruits over time**. |
+| **Reinforcements** | Division commander requests men → **Army** layer allocates recruit pool (Phase 6). |
+| **Victory** | **Objective-based** (River Line placeholder) — one clear primary goal for v1. |
 | **Multiplayer** | None — single-player only. |
 
 ---
@@ -26,44 +26,46 @@
 ## Terminology
 
 ```
-Army          ~10 divisions on strategic map (3 fully playable at first)
- └── Division     player picks one to zoom into
-      └── Subsector   3 per division (= brigade-sized front slice)
-           └── Company    1 tactical mission (current 8-sector game)
-                └── Platoon   in-mission unit (36 men)
+Army (future)
+ └── Corps (future, 2–4 divisions)
+      └── Division     3 brigades — division map
+           └── Brigade     4 battalions — brigade map (often 3 on front, 1 in reserve)
+                └── Battalion    1 tactical mission (line + assault companies on map)
+                     └── Company    8 platoons × 30 riflemen
+                          └── Platoon
 ```
 
-**Suggested UI labels:** *Army map* → *Division front* → *Subsector* → *Company action*.
+**UI labels:** full words only — *Division*, *Brigade*, *Battalion*, *Company*, *No Man's Land* (no Bn/Bde/Coy/NML in player copy).
 
-**Default OOB (game abstraction):**
+**Default OOB (BEF v3):**
 
-- 1 division = **3 subsectors × 3 companies** = **9 companies**
-- ~**6–7 companies deployed** on the line, **2–3 in division reserve** at campaign start
-- 1 company ≈ one tactical map (8 platoons / sectors as today)
+- 1 division = **3 brigades × 4 battalions** = **12 battalion fronts** (max)
+- Each battalion = **4 companies**; **1 line + 1 assault** on tactical map; **2 battalion reserve** on brigade map
+- 30 riflemen per platoon · 240 per company · ~480 engaged per battalion assault at full strength
+
+See [`docs/OOB.md`](./OOB.md) for full table.
 
 ---
 
 ## Architecture notes (Android-safe)
 
-Build campaign as **separate scenes/screens** sharing one save blob:
-
 | Screen | Responsibility |
 |--------|----------------|
-| `ArmyScreen` | Strategic map, recruit pool, objective tracker, division selection |
-| `DivisionScreen` | 3 subsectors, company counters, transfer queue, reinforcement requests |
+| `ArmyScreen` | Strategic map, recruit pool, objective tracker, division selection (Phase 7) |
+| `DivisionScreen` | 3 brigade sectors — tap to zoom in |
+| `BrigadeScreen` | 4 battalion counters, briefing, company transfer between battalions |
 | `TacticalScreen` | Existing canvas game (`Game.ts` loop) |
 | `MissionBriefing` | Enemy intel, terrain summary, Commit / Back out |
 
-**Persistence:** one `CampaignSave` JSON in `localStorage` (Capacitor → same API on device).  
-**No server.** Autosave on: return from tactical, company transfer, recruit allocation, overextension event.
+**Persistence:** `CampaignSave` v3 in `localStorage`. v2 subsector saves reset on load.
 
-**Code layout (target):**
+**Code layout:**
 
 ```
-src/campaign/     CampaignState, tick, overextension, recruits
-src/campaign/ui/  Army + Division screens (DOM or canvas — match menu style)
-src/game/         Tactical sim (unchanged contract: seed + OOB in → outcome out)
-src/mission/      Map templates, generator hooks, briefing copy
+src/campaign/     CampaignState, OOB factory, overextension, recruits (Phase 6)
+src/campaign/ui/  Division + Brigade screens
+src/game/         Tactical sim
+src/mission/      Map templates, briefing copy
 ```
 
 Tactical mission API (contract to implement in Phase C):
@@ -174,83 +176,97 @@ Work top-to-bottom: each phase is shippable and playtestable.
 
 ---
 
-### Phase 1 — Campaign state (v0.7.0) · foundation
+### Phase 1 — Campaign state (v0.7.0) · foundation ✅
 
 **Goal:** Serializable war state, no new UI yet.
 
-- [ ] `CampaignState`: army, 1 playable division (9 companies), recruit pool, turn counter
-- [ ] `Company`, `Subsector`, `Division` types with strength, status, deployed slot
-- [ ] Save/load to `localStorage`; version field for migrations
-- [ ] Static enemy OOB table per company id (JSON)
-- [ ] Unit tests: strength aggregation, destroyed → rebuilding transition
+- [x] `CampaignState`: army, 1 playable division (9 companies), recruit pool, turn counter
+- [x] `Company`, `Subsector`, `Division` types with strength, status, deployed slot
+- [x] Save/load to `localStorage`; version **2** with v1 migration
+- [x] Static enemy OOB table per company id (`src/campaign/data/enemy-oob.json`)
+- [x] Unit tests: strength aggregation, destroyed → rebuilding transition
 
-**Exit:** Can load/save a fake campaign in dev console.
+**Exit:** Campaign button writes save; dev console: `__campaign.loadCampaignState()`.
 
 ---
 
-### Phase 2 — Division map UI (v0.7.1)
+### Phase 2 — Division map UI (v0.7.1) ✅
 
 **Goal:** Player sees the front and picks a fight.
 
-- [ ] **Division screen** after Campaign → New: stylized 3-subsector map (fictional names)
-- [ ] Company counters per subsector (strength bar, status icon)
-- [ ] Tap company → **briefing panel** (enemy strength estimate, terrain tags)
-- [ ] **Back out** from briefing (no tactical load) — starts redeploy cooldown on that company
-- [ ] **Commit** → load tactical with `MissionSetup` from company + template
-- [ ] Return from tactical → apply `MissionOutcome` to company + subsector control tint
+- [x] **Division screen** after Campaign → New: stylized 3-subsector map (fictional names)
+- [x] Company counters per subsector (strength bar, status icon)
+- [x] Tap company → **briefing panel** (enemy strength estimate, terrain tags)
+- [x] **Back out** from briefing — **2-turn redeploy cooldown**
+- [x] **Commit** → load tactical with `MissionSetup` from company + template
+- [x] Return from tactical → apply `MissionOutcome` to company + subsector control tint
 
 **Exit:** Full loop: division → one tactical map → division with updated strength.
 
 ---
 
-### Phase 3 — Tactical bridge & retreat (v0.7.2)
+### Phase 3 — Tactical bridge & retreat (v0.7.2) ✅
 
 **Goal:** Mission results feel fair; back-out costs time.
 
-- [ ] Pass company strength into tactical: depleted companies spawn fewer/res weaker platoons
-- [ ] **In-mission retreat** (menu) before enemy trench crossed → `retreat`, smaller strength loss than defeat
-- [ ] **Redeploy cooldown** (e.g. 2 strategic steps) after back-out or retreat
-- [ ] Company transfer UI: move company between subsectors with **1-step delay** queue
-- [ ] Minimum garrison rule: subsector with < 2 companies “Undermanned” flag (no auto-loss yet)
+- [x] Pass company strength into tactical: depleted companies spawn fewer/res weaker platoons
+- [x] **In-mission retreat** before enemy trench → early pull-back (5% penalty + redeploy)
+- [x] **Redeploy cooldown** (2 turns) after back-out or late retreat
+- [x] Company transfer UI: relocate between subsectors with **1-turn** delay
+- [x] Minimum garrison rule: subsector with < 2 line companies → **Undermanned** flag
 
 **Exit:** Player can shuffle companies; backing out hurts tempo.
 
 ---
 
-### Phase 4 — Map templates (v0.7.3)
+### Phase 4 — Map templates (v0.7.3) ✅
 
 **Goal:** Missions feel distinct.
 
-- [ ] 6–9 mission templates (arc, wire, pillbox, hill)
-- [ ] `templateId` + `seed` drive trench layout offsets, emplacement counts, enemy platoon map
-- [ ] Briefing shows template name + 2–3 intel lines
-- [ ] Skirmish mode can pick template for testing
+- [x] 9 mission templates (arc, wire, pillbox, hill, mud)
+- [x] `templateId` + `seed` drive trench arc, NML depth, wire sectors, enemy platoon weights
+- [x] Briefing shows template name + intel lines (layout-aware wire/terrain)
+- [x] Skirmish mode picks template in Settings for testing
 
 **Exit:** Same company replayed on different neighbor still feels different.
 
 ---
 
-### Phase 5 — Overextension & static enemy pressure (v0.8.0)
+### Phase 5 — Overextension & static enemy pressure (v0.8.0) ✅
 
 **Goal:** Strategic consequences without always-on AI.
 
-- [ ] After tactical **victory**, evaluate adjacency: salient without shoulder support → **Vulnerable** flag
-- [ ] **Undermanned** subsector + vulnerable neighbor → trigger **Enemy Counter-push** event
-- [ ] Event updates division map (enemy control fill, company forced to Critical or Destroyed)
-- [ ] Toast / log entry explaining why (“Left flank exposed — 2nd Subsector overrun”)
-- [ ] Optional: one **crisis tactical mission** if player taps event (stretch)
+- [x] After tactical **victory**, evaluate adjacency: salient without shoulder support → **Vulnerable** flag
+- [x] **Understrength** battalion + vulnerable neighbor → **Enemy Counter-push** event
+- [x] Event updates brigade map (enemy control, company forced to Critical or Destroyed)
+- [x] Front report log explaining why
 
-**Exit:** Winning one map in isolation can lose ground elsewhere — player learns linked advances.
+**Exit:** Winning one map in isolation can lose ground elsewhere.
 
 ---
 
-### Phase 6 — Recruits & rebuild (v0.8.1)
+### Phase 5b — Historical OOB v3 (v0.8.0) ✅
+
+**Goal:** Brigade/battalion hierarchy with historically scaled British rifle companies.
+
+- [x] **30-man platoons**, 8 platoons per company, 4 companies per battalion
+- [x] **Division map** → **Brigade map** → **Battalion briefing** → tactical
+- [x] One tactical map = one **battalion** (line company + assault company)
+- [x] Company transfer between battalions on brigade map (1-turn delay)
+- [x] Save **v3**; enemy OOB per battalion; `Launch Trench Command.command` launcher
+- [x] Full unit names in UI (Battalion, Brigade, Company — no abbreviations)
+
+**Exit:** Player manages a brigade front of up to 4 battalions; 12 maps per division at full scale.
+
+---
+
+### Phase 6 — Recruits & rebuild (v0.8.1) — **NEXT**
 
 **Goal:** Division ↔ army resource loop.
 
-- [ ] Recruit pool trickle (+ bonus on subsector victories)
-- [ ] Division screen: **Request reinforcements** (queue per company)
-- [ ] Army screen (minimal): approve requests, split pool across divisions (1 playable div for now)
+- [ ] Recruit pool trickle (+ bonus on battalion victories)
+- [ ] Brigade screen: **Request reinforcements** (queue per company)
+- [ ] Army screen (minimal): approve requests, split pool across divisions (1 playable division for now)
 - [ ] Destroyed company **rebuild timer** when recruits assigned
 - [ ] Depleted companies recover strength slowly if garrisoned (no battle) — optional tune
 
@@ -322,7 +338,8 @@ v0.7.1  Phase 2   Division map UI + tactical loop
 v0.7.2  Phase 3   Retreat, redeploy, company transfer
 v0.7.3  Phase 4   Map templates & variety
 v0.8.0  Phase 5   Overextension events
-v0.8.1  Phase 6   Recruits & rebuild
+v0.8.0  Phase 5b  OOB v3 — brigade/battalion maps, 30-man platoons ✅
+v0.8.1  Phase 6   Recruits & rebuild          ← NEXT
 v0.8.2  Phase 7   Army map (10 div / 3 playable)
 v0.9.0  Phase 8   Win/fail + campaign polish
 v1.0.0  Phase 9   Android APK
@@ -341,4 +358,4 @@ v1.0.0  Phase 9   Android APK
 
 ---
 
-*Last updated: campaign design session — BEF Amiens 1918, fictional OOB, offline Android target.*
+*Last updated: OOB v3 complete — Phase 6 (recruits & rebuild) next.*

@@ -1,5 +1,11 @@
 import type { Sector, Side } from "../types";
 import { CONFIG, LAYOUT } from "../types";
+import {
+  emplacementLineYForSector,
+  nmlBounds,
+  platoonLineY,
+  trenchLineY,
+} from "../mission/MissionLayout";
 
 export type SectorStripAction = { type: "callup"; sector: number } | { type: "mg"; sector: number };
 
@@ -55,16 +61,20 @@ export function isOnSectorStrip(y: number): boolean {
 }
 
 export function isInNml(y: number): boolean {
-  return y >= LAYOUT.nmlTop && y <= LAYOUT.nmlBottom;
+  const { top, bottom } = nmlBounds();
+  return y >= top && y <= bottom;
 }
 
 /** Wide tap bands for touch-friendly movement (player trench, staging, enemy trench). */
 export type MoveTapZone = "player_trench" | "player_staging" | "enemy_trench" | "none";
 
-export function moveTapZoneAt(y: number): MoveTapZone {
-  if (y >= LAYOUT.playerTrenchY - 40 && y <= LAYOUT.playerTrenchY + 40) return "player_trench";
+export function moveTapZoneAt(x: number, y: number): MoveTapZone {
+  const sector = sectorFromX(x);
+  const playerY = trenchLineY("player", sector);
+  const enemyY = trenchLineY("enemy", sector);
+  if (y >= playerY - 40 && y <= playerY + 40) return "player_trench";
   if (y >= LAYOUT.playerStagingY - 48 && y <= LAYOUT.playerStagingY + 52) return "player_staging";
-  if (y >= LAYOUT.enemyTrenchY - 40 && y <= LAYOUT.enemyTrenchY + 40) return "enemy_trench";
+  if (y >= enemyY - 40 && y <= enemyY + 40) return "enemy_trench";
   return "none";
 }
 
@@ -84,24 +94,22 @@ export function stagingY(side: Side): number {
   return side === "player" ? LAYOUT.playerStagingY : LAYOUT.enemyReserveY + 30;
 }
 
-export function frontTrenchY(side: Side): number {
-  return side === "player" ? LAYOUT.playerTrenchY : LAYOUT.enemyTrenchY;
+export function frontTrenchY(side: Side, sector = 3): number {
+  return trenchLineY(side, sector);
 }
 
 /** Troop line — slightly back from the parapet (easier to tap vs MGs). */
-export function platoonFrontY(side: Side): number {
-  const base = frontTrenchY(side);
-  return side === "player" ? base + 12 : base - 12;
+export function platoonFrontY(side: Side, sector = 3): number {
+  return platoonLineY(side, sector);
 }
 
 /** MG line — slightly forward toward no man's land. */
-export function emplacementLineY(side: Side): number {
-  const base = frontTrenchY(side);
-  return side === "player" ? base - 16 : base + 16;
+export function emplacementLineY(side: Side, sector = 3): number {
+  return emplacementLineYForSector(side, sector);
 }
 
-export function enemyTrenchY(): number {
-  return LAYOUT.enemyTrenchY;
+export function enemyTrenchY(sector = 3): number {
+  return trenchLineY("enemy", sector);
 }
 
 export function randomInSector(index: number, margin = 0.15): number {

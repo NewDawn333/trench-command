@@ -5,13 +5,13 @@ import { initialEffectiveness } from "./effectiveness";
 
 let nextId = 1;
 
-export function opponentTrenchY(side: Side): number {
-  return platoonFrontY(side === "player" ? "enemy" : "player");
+export function opponentTrenchY(side: Side, sector: number): number {
+  return platoonFrontY(side === "player" ? "enemy" : "player", sector);
 }
 
 /** Unit has crossed into the opponent's front trench line. */
 export function isInvader(p: Platoon): boolean {
-  return p.state === "enemy_trench" && Math.abs(p.y - opponentTrenchY(p.side)) < 30;
+  return p.state === "enemy_trench" && Math.abs(p.y - opponentTrenchY(p.side, p.sector)) < 30;
 }
 
 export function isOnOwnFrontLine(p: Platoon): boolean {
@@ -22,11 +22,11 @@ export function createPlatoon(side: Side, sector: number, state: PlatoonState): 
   const sx = spreadXInSector(sector, Math.floor(Math.random() * 3), 3);
   const y =
     state === "front"
-      ? platoonFrontY(side)
+      ? platoonFrontY(side, sector)
       : state === "staging"
         ? stagingY(side)
         : state === "enemy_trench"
-          ? opponentTrenchY(side)
+          ? opponentTrenchY(side, sector)
           : stagingY(side);
 
   return {
@@ -70,10 +70,12 @@ export function createPlatoons(side: Side): Platoon[] {
   return platoons;
 }
 
-export function callUpPlatoon(platoons: Platoon[], sector: number): Platoon {
+export function callUpPlatoon(platoons: Platoon[], sector: number, strength = CONFIG.platoonSize): Platoon {
   const p = createPlatoon("player", sector, "staging");
   p.effectiveness = initialEffectiveness("player", "staging");
   p.stagingTimer = 0;
+  p.strength = strength;
+  p.maxStrength = CONFIG.platoonSize;
   // Enter from the reserve strip below staging, then march up into the sector row.
   p.x = sectorCenterX(sector);
   p.y = LAYOUT.playerReserveY;
@@ -102,7 +104,7 @@ export function movePlatoonToFront(p: Platoon, _slot: number, _total: number): v
   if (p.state === "crossing" || p.state === "routing") return;
   if (p.state === "enemy_trench" && isInvader(p)) return;
   p.state = "front";
-  p.targetY = platoonFrontY(p.side);
+  p.targetY = platoonFrontY(p.side, p.sector);
   p.timeOnFront = 0;
   if (p.side === "player") p.stagingTimer = 0;
 }
@@ -111,27 +113,27 @@ export function movePlatoonLaterally(p: Platoon, sector: number, _slot: number, 
   if (p.state !== "front" && p.state !== "enemy_trench") return;
   p.sector = sector;
   if (p.state === "front") {
-    p.targetY = platoonFrontY(p.side);
+    p.targetY = platoonFrontY(p.side, p.sector);
     if (p.side === "player") p.timeOnFront = 0;
   } else {
-    p.targetY = opponentTrenchY(p.side);
+    p.targetY = opponentTrenchY(p.side, p.sector);
   }
 }
 
 export function isReliefCrossing(p: Platoon): boolean {
-  return p.state === "crossing" && Math.abs(p.targetY - platoonFrontY(p.side)) < 12;
+  return p.state === "crossing" && Math.abs(p.targetY - platoonFrontY(p.side, p.sector)) < 12;
 }
 
 export function beginCrossing(p: Platoon, assaultId: string): void {
   p.state = "crossing";
   p.assaultId = assaultId;
-  p.targetY = opponentTrenchY(p.side);
+  p.targetY = opponentTrenchY(p.side, p.sector);
 }
 
 export function beginReliefCrossing(p: Platoon, assaultId: string): void {
   p.state = "crossing";
   p.assaultId = assaultId;
-  p.targetY = platoonFrontY(p.side);
+  p.targetY = platoonFrontY(p.side, p.sector);
 }
 
 export function platoonsInSector(platoons: Platoon[], side: Side, sector: number, states?: Platoon["state"][]): Platoon[] {

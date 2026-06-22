@@ -307,12 +307,12 @@ export function tickPlatoonMovement(platoons: Platoon[], dt: number, sectors: Se
     } else if (p.state === "crossing") {
       if (isReliefCrossing(p)) {
         p.state = "front";
-        p.y = platoonFrontY(p.side);
+        p.y = platoonFrontY(p.side, p.sector);
         p.targetY = p.y;
         p.assaultId = null;
       } else {
         p.state = "enemy_trench";
-        p.y = opponentTrenchY(p.side);
+        p.y = opponentTrenchY(p.side, p.sector);
         p.targetY = p.y;
       }
       p.x = p.targetX;

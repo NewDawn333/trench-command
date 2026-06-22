@@ -11,7 +11,8 @@ import type {
 import { ARTY_SHELL_REGEN_SEC, DEFENDER_APPROACH_ADVANTAGE, TRENCH_MELEE_DPS, TRENCH_RIFLE_DPS } from "./ResourceConfig";
 import type { MissionStats } from "../app/MissionStats";
 import { recordCasualtyDamage } from "../app/MissionStats";
-import { FIRE_RANGE, LAYOUT } from "../types";
+import { FIRE_RANGE } from "../types";
+import { nmlBounds } from "../mission/MissionLayout";
 import { sectorCenterX, sectorFromX } from "./battlefield";
 import { adjacentSectorsByX, effectiveSector, inLateralTrenchRange } from "./layout";
 import { isCombatReady, isInvader } from "./platoons";
@@ -19,18 +20,20 @@ import { effectivenessLossFromDamage, platoonCombatMult } from "./effectiveness"
 
 /** Y band (inclusive) reachable by trench rifle fire from a side — NML only, no trench-to-trench. */
 function trenchRifleYBand(side: Side): { min: number; max: number } {
+  const { top, bottom } = nmlBounds();
   if (side === "player") {
-    return { min: LAYOUT.nmlBottom - FIRE_RANGE.trenchRifle, max: LAYOUT.nmlBottom };
+    return { min: bottom - FIRE_RANGE.trenchRifle, max: bottom };
   }
-  return { min: LAYOUT.nmlTop, max: LAYOUT.nmlTop + FIRE_RANGE.trenchRifle };
+  return { min: top, max: top + FIRE_RANGE.trenchRifle };
 }
 
 /** Y band reachable by MG / pillbox fire from a side — up to 2/3 into NML. */
 function emplacementYBand(side: Side): { min: number; max: number } {
+  const { top, bottom } = nmlBounds();
   if (side === "player") {
-    return { min: LAYOUT.nmlBottom - FIRE_RANGE.emplacement, max: LAYOUT.nmlBottom };
+    return { min: bottom - FIRE_RANGE.emplacement, max: bottom };
   }
-  return { min: LAYOUT.nmlTop, max: LAYOUT.nmlTop + FIRE_RANGE.emplacement };
+  return { min: top, max: top + FIRE_RANGE.emplacement };
 }
 
 function isInYBand(y: number, band: { min: number; max: number }): boolean {
@@ -415,11 +418,12 @@ export function decayEffects(events: CombatEvents, dt: number): void {
 }
 
 export function nmlZoneRect(): { x: number; y: number; w: number; h: number } {
+  const { top, bottom } = nmlBounds();
   return {
     x: 0,
-    y: LAYOUT.nmlTop,
+    y: top,
     w: 1200,
-    h: LAYOUT.nmlBottom - LAYOUT.nmlTop,
+    h: bottom - top,
   };
 }
 
@@ -429,12 +433,13 @@ export function sectorZoneRect(sector: number, y: number, h: number, mapWidth: n
 }
 
 export function artyZoneForSector(sector: number): { x: number; y: number; w: number; h: number } {
+  const { top, bottom } = nmlBounds();
   const w = 1200 / 8;
   return {
     x: sector * w - w * 0.1,
-    y: LAYOUT.nmlTop - 10,
+    y: top - 10,
     w: w * 1.2,
-    h: LAYOUT.nmlBottom - LAYOUT.nmlTop + 40,
+    h: bottom - top + 40,
   };
 }
 

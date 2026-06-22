@@ -1,0 +1,124 @@
+{
+  "battalions": {
+    "div-1-bde-0-bn-0": {
+      "id": "div-1-bde-0-bn-0",
+      "label": "Enemy 184th Battalion",
+      "templateId": "straight",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 2,
+      "pillboxSectors": [],
+      "difficultyTier": 1
+    },
+    "div-1-bde-0-bn-1": {
+      "id": "div-1-bde-0-bn-1",
+      "label": "Enemy 185th Battalion",
+      "templateId": "bulge_forward",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 1,
+      "pillboxSectors": [3],
+      "difficultyTier": 1
+    },
+    "div-1-bde-0-bn-2": {
+      "id": "div-1-bde-0-bn-2",
+      "label": "Enemy 186th Battalion",
+      "templateId": "re_entrant",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 2,
+      "pillboxSectors": [1, 6],
+      "difficultyTier": 2
+    },
+    "div-1-bde-0-bn-3": {
+      "id": "div-1-bde-0-bn-3",
+      "label": "Enemy 187th Battalion",
+      "templateId": "staggered",
+      "platoonStrength": 30,
+      "frontPlatoons": 7,
+      "mgCount": 1,
+      "pillboxSectors": [],
+      "difficultyTier": 1
+    },
+    "div-1-bde-1-bn-0": {
+      "id": "div-1-bde-1-bn-0",
+      "label": "Enemy 212th Battalion",
+      "templateId": "ridge_line",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 2,
+      "pillboxSectors": [4],
+      "difficultyTier": 1
+    },
+    "div-1-bde-1-bn-1": {
+      "id": "div-1-bde-1-bn-1",
+      "label": "Enemy 213th Battalion",
+      "templateId": "staggered",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 1,
+      "pillboxSectors": [],
+      "difficultyTier": 2
+    },
+    "div-1-bde-1-bn-2": {
+      "id": "div-1-bde-1-bn-2",
+      "label": "Enemy 214th Battalion",
+      "templateId": "wire_heavy",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 3,
+      "pillboxSectors": [2],
+      "difficultyTier": 2
+    },
+    "div-1-bde-1-bn-3": {
+      "id": "div-1-bde-1-bn-3",
+      "label": "Enemy 215th Battalion",
+      "templateId": "straight",
+      "platoonStrength": 30,
+      "frontPlatoons": 7,
+      "mgCount": 1,
+      "pillboxSectors": [],
+      "difficultyTier": 1
+    },
+    "div-1-bde-2-bn-0": {
+      "id": "div-1-bde-2-bn-0",
+      "label": "Enemy 261st Battalion",
+      "templateId": "muddy_flank",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 1,
+      "pillboxSectors": [5],
+      "difficultyTier": 1
+    },
+    "div-1-bde-2-bn-1": {
+      "id": "div-1-bde-2-bn-1",
+      "label": "Enemy 262nd Battalion",
+      "templateId": "pillbox_redoubt",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 2,
+      "pillboxSectors": [0, 7],
+      "difficultyTier": 2
+    },
+    "div-1-bde-2-bn-2": {
+      "id": "div-1-bde-2-bn-2",
+      "label": "Enemy 263rd Battalion",
+      "templateId": "sunken_road",
+      "platoonStrength": 30,
+      "frontPlatoons": 8,
+      "mgCount": 2,
+      "pillboxSectors": [3],
+      "difficultyTier": 3
+    },
+    "div-1-bde-2-bn-3": {
+      "id": "div-1-bde-2-bn-3",
+      "label": "Enemy 264th Battalion",
+      "templateId": "re_entrant",
+      "platoonStrength": 30,
+      "frontPlatoons": 7,
+      "mgCount": 1,
+      "pillboxSectors": [],
+      "difficultyTier": 2
+    }
+  }
+}

@@ -2,6 +2,16 @@
 
 Real-time WW1 trench sector commander — mass troops, bracket no man's land with artillery, and assault sector by sector until the enemy line is yours.
 
+**v0.8.0** — Campaign Phase 5: vulnerable salients, counter-push events, front reports.
+
+**v0.7.3** — Campaign Phase 4: nine map templates, seed-driven layout, skirmish template picker.
+
+**v0.7.2** — Campaign Phase 3: depleted missions, early retreat, transfers, undermanned flag.
+
+**v0.7.1** — Campaign Phase 2: division map, briefing, tactical loop with persistent company strength.
+
+**v0.7.0** — Campaign Phase 1: army/division/company state, enemy OOB, save v2 + tests.
+
 **v0.6.1** — Campaign Phase 0: `MissionOutcome`, save stub, Skirmish vs Campaign menu, Withdraw.
 
 **v0.6** — Limited mode + **effectiveness** (fire rate, movement, staging recovery, assault surge). Movable MGs.
@@ -9,6 +19,11 @@ Real-time WW1 trench sector commander — mass troops, bracket no man's land wit
 See [ROADMAP.md](./ROADMAP.md) and [docs/ANDROID.md](./docs/ANDROID.md).
 
 ## Run locally
+
+**Easiest (macOS):** double-click **`Launch Trench Command.command`** in this folder.  
+A Terminal window opens, starts the game server, and opens your browser. Keep that window open while you play; press **Ctrl+C** in Terminal to stop.
+
+First time macOS may block the launcher: right-click the file → **Open** → **Open** once to approve it.
 
 ```bash
 npm install

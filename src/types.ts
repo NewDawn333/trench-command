@@ -133,7 +133,7 @@ export const CONFIG: GameConfig = {
   mapWidth: 1200,
   mapHeight: 600,
   platoonsPerSide: 24,
-  platoonSize: 36,
+  platoonSize: 30,
   replacementRate: 0.08,
 };
 

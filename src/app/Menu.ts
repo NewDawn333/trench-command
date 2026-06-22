@@ -3,6 +3,7 @@ import { formatTime, loadHighScores, type GameSettings } from "./GameSettings";
 import type { AudioManager } from "../audio/AudioManager";
 import type { AIDifficulty } from "./Difficulty";
 import { difficultyDescription } from "./Difficulty";
+import { allTemplateIds, templateDisplayName } from "../mission/templateRegistry";
 
 function missionEndCopy(outcome: MissionOutcome): { title: string; subtitle: string } {
   switch (outcome.result) {
@@ -24,18 +25,29 @@ function missionEndCopy(outcome: MissionOutcome): { title: string; subtitle: str
   }
 }
 
-export function renderMissionEnd(outcome: MissionOutcome, scores: ReturnType<typeof loadHighScores>): string {
+export function renderMissionEnd(
+  outcome: MissionOutcome,
+  scores: ReturnType<typeof loadHighScores>,
+  options: { campaign?: boolean } = {},
+): string {
   const { title, subtitle } = missionEndCopy(outcome);
+  const campaign = options.campaign === true;
 
   const bestLine =
-    outcome.result === "victory" && scores.bestVictoryTime !== null
+    !campaign && outcome.result === "victory" && scores.bestVictoryTime !== null
       ? `<p class="best-time">Best victory: ${formatTime(scores.bestVictoryTime)}</p>`
       : "";
 
   const recordLine =
-    outcome.result === "retreat"
+    campaign || outcome.result === "retreat"
       ? ""
       : `<p class="record-line">Record: ${scores.victories} wins · ${scores.defeats} losses</p>`;
+
+  const primaryLabel = campaign ? "Return to division" : "Main Menu";
+  const secondaryLabel = campaign ? "" : "Retry";
+  const secondaryBtn = campaign
+    ? ""
+    : `<button class="btn" id="btn-retry">${secondaryLabel}</button>`;
 
   return `
     <h2>${title}</h2>
@@ -54,8 +66,8 @@ export function renderMissionEnd(outcome: MissionOutcome, scores: ReturnType<typ
     ${bestLine}
     ${recordLine}
     <div class="overlay-actions">
-      <button class="btn" id="btn-retry">Retry</button>
-      <button class="btn btn-active" id="btn-menu">Main Menu</button>
+      ${secondaryBtn}
+      <button class="btn btn-active" id="btn-menu">${primaryLabel}</button>
     </div>
   `;
 }
@@ -91,6 +103,16 @@ export function bindMenuSettings(audio: AudioManager, settings: GameSettings, on
   const hintsToggle = document.getElementById("setting-hints") as HTMLInputElement;
   const unlimitedToggle = document.getElementById("setting-unlimited") as HTMLInputElement;
   const effBadgeToggle = document.getElementById("setting-eff-badge") as HTMLInputElement;
+  const templateSelect = document.getElementById("setting-skirmish-template") as HTMLSelectElement;
+
+  if (templateSelect && templateSelect.options.length === 0) {
+    for (const id of allTemplateIds()) {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = templateDisplayName(id);
+      templateSelect.appendChild(opt);
+    }
+  }
 
   const sync = (): void => {
     const a = audio.getSettings();
@@ -101,6 +123,7 @@ export function bindMenuSettings(audio: AudioManager, settings: GameSettings, on
     hintsToggle.checked = settings.showControlHints;
     unlimitedToggle.checked = settings.unlimitedResources;
     effBadgeToggle.checked = settings.showEffectivenessBadge;
+    if (templateSelect) templateSelect.value = settings.skirmishTemplateId;
   };
 
   musicVol.addEventListener("input", () => audio.updateSettings({ musicVolume: Number(musicVol.value) / 100 }));
@@ -117,6 +140,10 @@ export function bindMenuSettings(audio: AudioManager, settings: GameSettings, on
   });
   effBadgeToggle.addEventListener("change", () => {
     settings.showEffectivenessBadge = effBadgeToggle.checked;
+    onSettingsChange({ ...settings });
+  });
+  templateSelect?.addEventListener("change", () => {
+    settings.skirmishTemplateId = templateSelect.value;
     onSettingsChange({ ...settings });
   });
 

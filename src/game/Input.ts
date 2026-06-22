@@ -198,7 +198,7 @@ export class InputHandler {
 
     const mg = playerMgAtPoint(game.emplacements, x, y);
 
-    if (game.selectedEmplacementId && moveTapZoneAt(y) === "player_trench") {
+    if (game.selectedEmplacementId && moveTapZoneAt(x, y) === "player_trench") {
       const sector = sectorFromX(x);
       if (moveSelectedMgToSector(game, sector)) {
         this.lastTap = { t: now, x, y };
@@ -218,7 +218,7 @@ export class InputHandler {
       /* arty stop */
     } else {
       const sector = sectorFromX(x);
-      const zone = moveTapZoneAt(y);
+      const zone = moveTapZoneAt(x, y);
       if (game.selectedPlatoons.length > 0 && zone !== "none") {
         applySelectedMove(game, sector, zone);
       } else {
@@ -300,6 +300,11 @@ export function updateHUD(game: GameState): void {
 
   syncModeButtons(game.mode);
   status.textContent = getStatusText(game);
-  replacements.textContent = "Sector strip: + Call Up · + MG";
+  if (game.campaignStrengthReserve !== null) {
+    const callable = Math.ceil(game.campaignStrengthReserve / 36);
+    replacements.textContent = `Assault reserve: ${game.campaignStrengthReserve} riflemen (~${callable} call-ups) · sector strip below`;
+  } else {
+    replacements.textContent = "Sector strip: + Call Up · + MG";
+  }
   artyStatus.textContent = getArtilleryStatus(game);
 }

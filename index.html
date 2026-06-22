@@ -12,7 +12,7 @@
       <section id="screen-menu" class="screen screen-menu">
         <div class="menu-card">
           <h1 class="menu-title">Trench Command</h1>
-          <p class="menu-tagline">Real-time sector assault · v0.6.1</p>
+          <p class="menu-tagline">Real-time sector assault · v0.8.0</p>
           <p id="menu-scores" class="menu-scores"></p>
           <p id="campaign-hint" class="campaign-hint"></p>
           <div class="difficulty-picker">
@@ -26,8 +26,8 @@
           </div>
           <div class="menu-actions">
             <button id="btn-skirmish" class="btn btn-large btn-active">Skirmish</button>
-            <button id="btn-campaign" class="btn btn-large" disabled title="Division map arrives in v0.7">Campaign</button>
-            <button id="btn-continue" class="btn btn-large" disabled title="No campaign in progress">Continue</button>
+            <button id="btn-campaign" class="btn btn-large">Campaign</button>
+            <button id="btn-continue" class="btn btn-large" disabled title="Start a campaign first">Continue</button>
             <button id="btn-settings" class="btn btn-large">Settings</button>
             <button id="btn-credits" class="btn btn-large">Credits</button>
           </div>
@@ -50,6 +50,10 @@
             <div class="settings-row">
               <label><input type="checkbox" id="setting-eff-badge" checked /> Show effectiveness on platoons</label>
             </div>
+            <div class="settings-row settings-template">
+              <label for="setting-skirmish-template">Skirmish map template</label>
+              <select id="setting-skirmish-template" aria-label="Skirmish map template"></select>
+            </div>
             <button id="btn-settings-close" class="btn">Done</button>
           </div>
           <div id="panel-credits" class="menu-panel hidden">
@@ -58,6 +62,41 @@
             <p>Built with TypeScript, Vite, and Canvas 2D.</p>
             <p>Audio and sprites are procedural placeholders until asset packs land.</p>
             <button id="btn-credits-close" class="btn">Close</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-division" class="screen screen-division hidden">
+        <div class="division-shell">
+          <header class="division-header">
+            <div>
+              <h1 id="division-title">1st Division</h1>
+              <p id="division-summary" class="division-summary"></p>
+            </div>
+            <button id="btn-division-menu" type="button" class="btn">Main Menu</button>
+          </header>
+          <p class="division-hint">Division front — tap a brigade sector. Each brigade holds 4 battalions; one battalion = one tactical map (line + assault companies).</p>
+          <div id="division-events" class="division-events-wrap division-events-empty"></div>
+          <div id="division-map" class="front-map-host"></div>
+        </div>
+      </section>
+
+      <section id="screen-brigade" class="screen screen-division hidden">
+        <div class="division-shell">
+          <header class="division-header">
+            <div>
+              <h1 id="brigade-title">1st Brigade</h1>
+              <p id="brigade-summary" class="division-summary"></p>
+            </div>
+            <div class="division-header-actions">
+              <button id="btn-brigade-division" type="button" class="btn">Division map</button>
+            </div>
+          </header>
+          <p class="division-hint">Brigade front — tap a battalion counter to assault. 8 platoons × 30 riflemen per company; line company holds the trench, assault company is call-up reserve.</p>
+          <div id="brigade-events" class="division-events-wrap division-events-empty"></div>
+          <div id="brigade-map" class="front-map-host"></div>
+          <div id="briefing-panel" class="briefing-panel hidden" role="dialog" aria-modal="true">
+            <div id="briefing-content" class="briefing-card"></div>
           </div>
         </div>
       </section>
@@ -105,7 +144,7 @@
           <span><i class="dot enemy"></i> Enemy platoons</span>
           <span><i class="dot mg"></i> Machine gun</span>
           <span><i class="dot arty"></i> Artillery zone</span>
-          <span class="hint">Tap platoon to select · double-tap sector to advance · Artillery: tap NML to fire, tap bracket to stop</span>
+          <span class="hint">Tap platoon to select · double-tap sector to advance · Artillery: tap No Man's Land to fire, tap bracket to stop</span>
         </div>
         <div id="overlay" class="hidden">
           <div id="overlay-content"></div>

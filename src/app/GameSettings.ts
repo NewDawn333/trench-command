@@ -9,6 +9,8 @@ export interface GameSettings {
   /** Bypass call-up regen, MG pool, and arty regen limits (balance testing). */
   unlimitedResources: boolean;
   showEffectivenessBadge: boolean;
+  /** Skirmish map template for layout testing. */
+  skirmishTemplateId: string;
 }
 
 export interface HighScores {
@@ -22,6 +24,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   aiDifficulty: "balanced",
   unlimitedResources: false,
   showEffectivenessBadge: true,
+  skirmishTemplateId: "straight",
 };
 
 const DEFAULT_SCORES: HighScores = {

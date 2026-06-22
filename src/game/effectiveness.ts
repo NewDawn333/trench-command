@@ -16,6 +16,7 @@ import {
   EFFECTIVENESS_STRENGTH_THRESHOLD,
   EFFECTIVENESS_SURGE_DECAY_RATE,
 } from "./ResourceConfig";
+import { crossingTerrainMult } from "../mission/MissionLayout";
 import { isInvader, platoonsInSector } from "./platoons";
 
 /** Fire rate & movement multiplier from effectiveness (0–150). */
@@ -31,8 +32,9 @@ export function platoonCombatMult(p: Platoon): number {
 }
 
 export function platoonMoveMult(p: Platoon): number {
-  if (p.side !== "player") return 1;
-  return effectivenessMult(p.effectiveness);
+  let mult = p.side !== "player" ? 1 : effectivenessMult(p.effectiveness);
+  if (p.state === "crossing") mult *= crossingTerrainMult(p.sector);
+  return mult;
 }
 
 function invaderDecayImmune(p: Platoon): boolean {

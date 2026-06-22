@@ -13,7 +13,7 @@ export function createEmplacement(side: Side, sector: number, type: "mg" | "pill
     side,
     sector,
     x: 0,
-    y: emplacementLineY(side),
+    y: emplacementLineY(side, sector),
     type,
     arcStart,
     arcEnd,

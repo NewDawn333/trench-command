@@ -12,8 +12,6 @@ import type {
   Tracer,
 } from "../types";
 import {
-  createEnemyBatteries,
-  createPlayerBatteries,
   decayEffects,
   activePlayerBatteryAt,
   activePlayerBatteryInSector,
@@ -33,13 +31,10 @@ import {
   canPlaceMgInSector,
   movePlayerMgToSector,
   placeEmplacementInSector,
-  seedEnemyEmplacements,
-  seedPlayerEmplacements,
   tickEmplacementMoveCooldown,
 } from "./emplacements";
 import {
   callUpPlatoon,
-  createPlatoons,
   isInvader,
   movePlatoonToFront,
   movePlatoonToStaging,
@@ -49,7 +44,6 @@ import { layoutAllPlatoons } from "./layout";
 import {
   checkDefeat,
   checkVictory,
-  createAIState,
   launchAssault,
   launchLateralTrenchAssault,
   moveSelectedLaterally,
@@ -65,7 +59,7 @@ import {
   type AIState,
 } from "./simulation";
 import { CONFIG } from "../types";
-import { CALL_UP_REGEN_SEC, MG_POOL_START } from "./ResourceConfig";
+import { CALL_UP_REGEN_SEC } from "./ResourceConfig";
 import {
   sectorsUnderBarrage,
   snapshotAssaultActive,
@@ -75,16 +69,23 @@ import {
 import { queueSound } from "../audio/AudioDirector";
 import type { GameToast } from "../app/Toasts";
 import { pushToast, tickToasts, toastBarrageSectors, toastSectorControlChanges } from "../app/Toasts";
-import { createMissionStats, sampleCasualtyHistory, type MissionStats } from "../app/MissionStats";
+import { sampleCasualtyHistory, type MissionStats } from "../app/MissionStats";
 import type { AIDifficulty } from "../app/Difficulty";
-import { getAIProfile } from "../app/Difficulty";
-import { createSectors, sectorFromX, type MoveTapZone } from "./battlefield";
+import { createGameFromMission } from "../mission/campaignMission";
+import { buildSkirmishSetup, skirmishBattalionForMission } from "../mission/skirmishSetup";
+import type { MissionLayout } from "../mission/MissionLayout";
+import { sectorFromX, type MoveTapZone } from "./battlefield";
 
 export interface NewGameOptions {
   aiDifficulty?: AIDifficulty;
   campaignLevel?: number;
   unlimitedResources?: boolean;
   showEffectivenessBadge?: boolean;
+  /** Campaign mission — company strength at deploy (for early retreat). */
+  campaignCompanyStartStrength?: number;
+  /** Skirmish map template (Phase 4). */
+  skirmishTemplateId?: string;
+  skirmishSeed?: number;
 }
 
 export type GamePhase = "playing" | "victory" | "defeat" | "retreat";
@@ -121,50 +122,19 @@ export interface GameState {
   prevSectorControllers: SectorController[];
   barrageToastSectors: Set<number>;
   showEffectivenessBadge: boolean;
+  /** Set for campaign tactical missions. */
+  campaignCompanyStartStrength: number | null;
+  /** Campaign only — riflemen left to call up (null in skirmish). */
+  campaignStrengthReserve: number | null;
+  /** Active map template layout for rendering and terrain rules. */
+  missionLayout: MissionLayout;
 }
 
 export function createGame(options: NewGameOptions = {}): GameState {
-  const aiDifficulty = options.aiDifficulty ?? "balanced";
-  const campaignLevel = options.campaignLevel ?? 1;
-  const unlimitedResources = options.unlimitedResources ?? false;
-  const showEffectivenessBadge = options.showEffectivenessBadge ?? true;
-  const aiProfile = getAIProfile(aiDifficulty, campaignLevel);
-  const platoons = [...createPlatoons("player"), ...createPlatoons("enemy")];
-  layoutAllPlatoons(platoons);
-  const sectors = createSectors();
-  return {
-    platoons,
-    sectors,
-    emplacements: [...seedPlayerEmplacements(), ...seedEnemyEmplacements()],
-    playerBatteries: createPlayerBatteries(),
-    enemyBatteries: createEnemyBatteries(),
-    assaults: [],
-    events: { casualties: [], tracers: [], impacts: [] },
-    ai: createAIState(aiProfile),
-    paused: false,
-    phase: "playing",
-    selectedPlatoons: [],
-    selectedEmplacementId: null,
-    selectedSector: null,
-    mode: "select",
-    replacementPool: 0,
-    artyPreview: null,
-    time: 0,
-    soundCues: [],
-    stats: createMissionStats(),
-    showCasualtyChart: false,
-    aiDifficulty,
-    campaignLevel,
-    callUpRegen: Array.from({ length: CONFIG.sectorCount }, () => 1),
-    mgPool: MG_POOL_START,
-    mgPoolMax: MG_POOL_START,
-    unlimitedResources,
-    assaultActivePrev: new Map(),
-    toasts: [],
-    prevSectorControllers: sectors.map((s) => s.controller),
-    barrageToastSectors: new Set(),
-    showEffectivenessBadge,
-  };
+  const templateId = options.skirmishTemplateId ?? "straight";
+  const seed = options.skirmishSeed ?? Date.now();
+  const setup = buildSkirmishSetup(templateId, seed);
+  return createGameFromMission(setup, skirmishBattalionForMission(), options);
 }
 
 export function togglePause(game: GameState): void {
@@ -347,13 +317,22 @@ export function moveSelectedLaterallyInGame(game: GameState, sector: number): vo
 export function callUpTroops(game: GameState, sector?: number): void {
   const s = sector ?? game.selectedSector ?? 0;
   if (!reservesAvailableForSector(game, s)) return;
-  callUpPlatoon(game.platoons, s);
+
+  if (game.campaignStrengthReserve !== null) {
+    const amount = Math.min(CONFIG.platoonSize, game.campaignStrengthReserve);
+    callUpPlatoon(game.platoons, s, amount);
+    game.campaignStrengthReserve -= amount;
+  } else {
+    callUpPlatoon(game.platoons, s);
+  }
+
   if (!game.unlimitedResources) game.callUpRegen[s] = 0;
   layoutAllPlatoons(game.platoons);
   game.selectedSector = s;
 }
 
 export function reservesAvailableForSector(game: GameState, sector: number): boolean {
+  if (game.campaignStrengthReserve !== null && game.campaignStrengthReserve <= 0) return false;
   if (game.unlimitedResources) return true;
   return game.callUpRegen[sector] >= 1;
 }

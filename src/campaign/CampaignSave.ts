@@ -1,114 +1,98 @@
-/** Campaign persistence — Phase 0 stub; division/army UI lands in v0.7+. */
+import { createNewCampaign } from "./factory";
+import { playableDivision } from "./company";
+import { normalizeCampaignState } from "./outcomes";
+import {
+  CAMPAIGN_OBJECTIVE_LABEL,
+  CAMPAIGN_STORAGE_KEY,
+  RECRUIT_TRICKLE_PER_TURN,
+} from "./constants";
+import type { CampaignState } from "./types";
 
-export const CAMPAIGN_SAVE_VERSION = 1;
-export const CAMPAIGN_STORAGE_KEY = "trench-command-campaign-v1";
+export { CAMPAIGN_OBJECTIVE_LABEL, CAMPAIGN_STORAGE_KEY, RECRUIT_TRICKLE_PER_TURN };
 
-/** Slow trickle — tune up after playtesting (not infinite). */
-export const RECRUIT_TRICKLE_PER_TURN = 8;
+export type { CampaignState, Company, Battalion, Brigade, Division, Army } from "./types";
+export { createNewCampaign } from "./factory";
+export {
+  applyCompanyStrengthLoss,
+  companyStatusFromStrength,
+  divisionStrength,
+  findBattalion,
+  findBrigade,
+  findCompanyInDivision,
+  playableDivision,
+  setCompanyStrength,
+  startCompanyRebuild,
+  syncCompanyStatus,
+  tickCompanyRebuild,
+  COMPANY_MAX_STRENGTH,
+  COMPANY_REBUILD_TURNS,
+  PLATOON_SIZE,
+  PLATOONS_PER_COMPANY,
+} from "./company";
+export { getEnemyBattalionOob } from "./enemyOob";
 
-/** v1 placeholder objective on the Amiens sector map. */
-export const CAMPAIGN_OBJECTIVE_LABEL = "River Line";
-
-export type CampaignPhase = "inactive" | "division" | "army";
-
-export interface CompanySlot {
-  id: string;
-  label: string;
-  strength: number;
-  maxStrength: number;
-  status: "full" | "depleted" | "critical" | "destroyed" | "rebuilding";
+interface CampaignSaveV2 {
+  version: 2;
 }
 
-export interface SubsectorSlot {
-  id: string;
-  label: string;
-  companies: CompanySlot[];
+function parseCampaignState(raw: unknown): CampaignState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const data = raw as Record<string, unknown>;
+
+  if (data.version === 3 && data.army) {
+    return data as unknown as CampaignState;
+  }
+
+  return null;
 }
 
-export interface DivisionSnapshot {
-  id: string;
-  label: string;
-  subsectors: SubsectorSlot[];
-}
-
-export interface CampaignSave {
-  version: number;
-  createdAt: number;
-  updatedAt: number;
-  /** Strategic step counter (advances when returning from tactical). */
-  turn: number;
-  phase: CampaignPhase;
-  objectiveLabel: string;
-  recruitPool: number;
-  recruitTricklePerTurn: number;
-  /** Populated in v0.7.0 — null keeps Phase 0 save tiny. */
-  division: DivisionSnapshot | null;
-}
-
-function fictionalCompany(id: string, label: string): CompanySlot {
-  return { id, label, strength: 288, maxStrength: 288, status: "full" };
-}
-
-/** Seed division OOB for future phases — not playable until v0.7. */
-export function createStubDivision(): DivisionSnapshot {
-  const subLabels = ["Left Subsector", "Center Subsector", "Right Subsector"];
-  return {
-    id: "div-1",
-    label: "1st Division",
-    subsectors: subLabels.map((label, si) => ({
-      id: `sub-${si}`,
-      label,
-      companies: [0, 1, 2].map((ci) => fictionalCompany(`c-${si}-${ci}`, `Company ${String.fromCharCode(65 + si * 3 + ci)}`)),
-    })),
-  };
-}
-
-export function createEmptyCampaignSave(): CampaignSave {
-  const now = Date.now();
-  return {
-    version: CAMPAIGN_SAVE_VERSION,
-    createdAt: now,
-    updatedAt: now,
-    turn: 0,
-    phase: "inactive",
-    objectiveLabel: CAMPAIGN_OBJECTIVE_LABEL,
-    recruitPool: 40,
-    recruitTricklePerTurn: RECRUIT_TRICKLE_PER_TURN,
-    division: null,
-  };
-}
-
-export function loadCampaignSave(): CampaignSave | null {
+export function loadCampaignState(): CampaignState | null {
   try {
     const raw = localStorage.getItem(CAMPAIGN_STORAGE_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw) as CampaignSave;
-    if (data.version !== CAMPAIGN_SAVE_VERSION) return null;
-    return data;
+    const parsed = JSON.parse(raw);
+    const state = parseCampaignState(parsed);
+    if (!state) {
+      if ((parsed as CampaignSaveV2).version === 2) {
+        const fresh = createNewCampaign();
+        saveCampaignState(fresh);
+        return fresh;
+      }
+      return null;
+    }
+    return normalizeCampaignState(state);
   } catch {
     return null;
   }
 }
 
-export function saveCampaignSave(save: CampaignSave): void {
-  save.updatedAt = Date.now();
-  localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(save));
+export function saveCampaignState(state: CampaignState): void {
+  state.updatedAt = Date.now();
+  localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(state));
 }
 
 export function hasCampaignSave(): boolean {
-  return loadCampaignSave() !== null;
-}
-
-/** Reserve an empty campaign slot on first launch (Phase 0 menu hint). */
-export function ensureCampaignSaveSlot(): CampaignSave {
-  const existing = loadCampaignSave();
-  if (existing) return existing;
-  const save = createEmptyCampaignSave();
-  saveCampaignSave(save);
-  return save;
+  return loadCampaignState() !== null;
 }
 
 export function campaignContinueAvailable(): boolean {
-  const save = loadCampaignSave();
-  return save !== null && save.phase !== "inactive";
+  const state = loadCampaignState();
+  return state !== null && state.phase !== "inactive";
+}
+
+export function startCampaign(): CampaignState {
+  const state = createNewCampaign();
+  saveCampaignState(state);
+  return state;
+}
+
+export function getCampaignSummary(state: CampaignState): string {
+  const div = playableDivision(state);
+  if (!div) return `Turn ${state.turn} · ${state.objectiveLabel}`;
+  const bns = div.brigades.flatMap((b) => b.battalions).filter((bn) => bn.role === "front").length;
+  return `Turn ${state.turn} · ${div.label} · ${div.brigades.length} brigades · ${bns} battalion fronts · ${state.recruitPool} recruits`;
+}
+
+export function ensureCampaignSaveSlot(): CampaignState | null {
+  return loadCampaignState();
 }
