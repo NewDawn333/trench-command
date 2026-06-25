@@ -13,6 +13,12 @@ export const COMPANIES_PER_BATTALION = 4;
 export const BATTALIONS_PER_BRIGADE = 4;
 export const BRIGADES_PER_DIVISION = 3;
 
+/** Divisions on the army strategic map. */
+export const ARMY_DIVISION_COUNT = 10;
+
+/** Map slots (0-based) for the three player-commanded divisions. */
+export const PLAYABLE_DIVISION_SLOTS = [2, 4, 6] as const;
+
 /** Battalions holding the brigade front when using a 3-section layout. */
 export const BRIGADE_FRONT_BATTALIONS = 3;
 

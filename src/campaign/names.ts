@@ -8,6 +8,10 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
+export function divisionLabel(divisionNumber: number): string {
+  return `${ordinal(divisionNumber)} Division`;
+}
+
 export function brigadeLabel(brigadeIndex: number): string {
   return `${ordinal(brigadeIndex + 1)} Brigade`;
 }

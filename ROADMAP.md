@@ -1,8 +1,8 @@
 # Trench Command — Roadmap
 
-**Current:** v0.8.1 — Phase 6 recruits & rebuild pipeline.
+**Current:** v0.8.2 — Phase 7 army strategic map.
 
-**Next:** Campaign **Phase 7** (v0.8.2) — army strategic map.
+**Next:** Campaign **Phase 8** (v0.9.0) — objective win/fail and campaign polish.
 
 **Full campaign spec:** [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md) · OOB detail: [`docs/OOB.md`](docs/OOB.md)
 
@@ -20,8 +20,8 @@
 | v0.8.0 | 5 | Overextension, counter-push events | ✅ |
 | **v0.8.0** | **5b** | **Historical OOB v3:** 30-man platoons, brigade map, battalion = 1 tactical map, save v3, launcher | ✅ |
 | **v0.8.1** | **6** | Recruit pool, reinforcement requests, army HQ, rebuild pipeline | ✅ |
-| v0.8.2 | 7 | Army map (10 divisions, 3 playable) | **Next** |
-| v0.9.0 | 8 | Objective win/fail, campaign polish | |
+| **v0.8.2** | **7** | Army map (10 divisions, 3 playable) | ✅ |
+| v0.9.0 | 8 | Objective win/fail, campaign polish | **Next** |
 | v1.0.0 | 9 | Android APK (Capacitor, offline) | |
 
 **Deferred:** old linear level unlock; Corps layer; French/US/German OOB variants (mechanics ready).
@@ -68,8 +68,9 @@ Phases 1–4 delivered: limited resources, effectiveness, MG relocation, combat 
 - [x] **Phase 3–4:** Back-out penalty, map variety, templates
 - [x] **Phase 5:** Salient / overextension counter-push events
 - [x] **Phase 5b:** Brigade map, battalion assault, company transfer between battalions, save v3
-- [ ] **Phase 6:** Recruit backfill pipeline
-- [ ] **Phase 7–8:** Army zoom + River Line objective win
+- [x] **Phase 6:** Recruit backfill pipeline
+- [x] **Phase 7:** Army zoom + River Line objective tracker
+- [ ] **Phase 8:** Objective win/fail + campaign polish
 - [ ] **Phase 9:** Android offline build
 
 ---

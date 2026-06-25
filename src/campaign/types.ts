@@ -1,8 +1,11 @@
 /** Campaign layer types — v3 BEF order of battle. */
 
-export type CampaignPhase = "inactive" | "division" | "brigade" | "army";
+export type CampaignPhase = "inactive" | "army" | "division" | "brigade";
 
 export type FrontController = "player" | "enemy" | "contested";
+
+/** Static control tint for non-playable divisions on the army map. */
+export type DivisionLineStatus = "friendly_ai" | "contested" | "enemy";
 
 export type CompanyStatus = "full" | "depleted" | "critical" | "destroyed" | "rebuilding";
 
@@ -51,6 +54,10 @@ export interface Division {
   id: string;
   label: string;
   playable: boolean;
+  /** Position along the army front (0–9). */
+  mapSlot: number;
+  /** Static sector colour when `playable` is false. */
+  lineStatus?: DivisionLineStatus;
   brigades: Brigade[];
 }
 
@@ -84,6 +91,8 @@ export interface CampaignState {
   updatedAt: number;
   turn: number;
   phase: CampaignPhase;
+  /** Player-commanded division on the army map. */
+  activeDivisionId: string | null;
   /** Selected brigade when phase === "brigade". */
   activeBrigadeId: string | null;
   objectiveLabel: string;

@@ -632,6 +632,173 @@ button.front-slice--clickable:hover {
   color: #a8c878;
 }
 
+.army-objective-host {
+  margin: 10px 0 4px;
+}
+
+.army-objective {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.army-objective__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.army-objective__label {
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #c4a860;
+}
+
+.army-objective__pct {
+  font-size: 0.8rem;
+  color: #b0b0a8;
+}
+
+.army-objective__track {
+  height: 10px;
+  border-radius: 999px;
+  background: #2a3028;
+  border: 1px solid #4a5244;
+  overflow: hidden;
+}
+
+.army-objective__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6a8a48, #c4a860);
+  transition: width 0.35s ease;
+}
+
+.army-map-host {
+  min-height: 280px;
+}
+
+.army-map {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #4a5244;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(120, 140, 90, 0.22), transparent 58%),
+    linear-gradient(180deg, #2a3028 0%, #1e211c 100%);
+}
+
+.army-map__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.army-map__objective {
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c4a860;
+}
+
+.army-map__scale {
+  font-size: 0.72rem;
+  color: #787870;
+}
+
+.army-map__line {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .army-map__line {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+
+.army-marker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1a1e18;
+  text-align: center;
+}
+
+.army-marker--playable {
+  cursor: pointer;
+  border-color: rgba(140, 180, 100, 0.35);
+  background: color-mix(in srgb, #6a8a48 22%, #1a1e18);
+}
+
+.army-marker--playable:hover {
+  border-color: rgba(180, 210, 120, 0.55);
+}
+
+.army-marker--active {
+  box-shadow: 0 0 0 2px rgba(196, 168, 96, 0.45);
+}
+
+.army-marker--ai {
+  opacity: 0.88;
+}
+
+.army-marker--friendly {
+  background: color-mix(in srgb, #5a6a50 24%, #1a1e18);
+}
+
+.army-marker--contested {
+  background: color-mix(in srgb, #8a7a40 22%, #1a1e18);
+}
+
+.army-marker--enemy {
+  background: color-mix(in srgb, #7a4848 20%, #1a1e18);
+}
+
+.army-marker__slot {
+  font-size: 0.65rem;
+  color: #787870;
+}
+
+.army-marker__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #e8e8e0;
+  line-height: 1.2;
+}
+
+.army-marker__meta {
+  font-size: 0.62rem;
+  color: #989890;
+  line-height: 1.25;
+}
+
+.army-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 0.72rem;
+  color: #989890;
+}
+
+.army-panel-title {
+  margin: 16px 0 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c8c8c0;
+}
+
 .army-requests {
   margin-top: 12px;
 }

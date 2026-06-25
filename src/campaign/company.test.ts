@@ -6,12 +6,12 @@ import {
   lineCompany,
   assaultCompany,
 } from "./company";
-import { createPlayableDivision } from "./factory";
+import { createLegacySingleDivision } from "./factory";
 import { COMPANIES_PER_BATTALION, BRIGADES_PER_DIVISION, BATTALIONS_PER_BRIGADE } from "./oob";
 
 describe("division OOB", () => {
   it("builds 3 brigades × 4 battalions × 4 companies", () => {
-    const div = createPlayableDivision();
+    const div = createLegacySingleDivision();
     expect(div.brigades).toHaveLength(BRIGADES_PER_DIVISION);
     for (const bde of div.brigades) {
       expect(bde.battalions).toHaveLength(BATTALIONS_PER_BRIGADE);
@@ -22,7 +22,7 @@ describe("division OOB", () => {
   });
 
   it("uses full unit names on labels", () => {
-    const div = createPlayableDivision();
+    const div = createLegacySingleDivision();
     const bn = div.brigades[0].battalions[0];
     expect(bn.label).toBe("1st Battalion");
     expect(bn.companies[0].label).toBe("A Company");
@@ -30,7 +30,7 @@ describe("division OOB", () => {
   });
 
   it("assigns line and assault companies per battalion", () => {
-    const div = createPlayableDivision();
+    const div = createLegacySingleDivision();
     const bn = div.brigades[0].battalions[0];
     expect(lineCompany(bn)?.duty).toBe("line");
     expect(assaultCompany(bn)?.duty).toBe("assault");
@@ -38,7 +38,7 @@ describe("division OOB", () => {
   });
 
   it("aggregates division strength from companies", () => {
-    const div = createPlayableDivision();
+    const div = createLegacySingleDivision();
     const expected = div.brigades
       .flatMap((b) => b.battalions)
       .flatMap((bn) => bn.companies)

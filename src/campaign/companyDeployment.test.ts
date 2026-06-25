@@ -7,7 +7,7 @@ import {
   planBattalionDeploymentFixed,
   PLATOONS_PER_COMPANY,
 } from "./companyDeployment";
-import { createPlayableDivision } from "./factory";
+import { createLegacySingleDivision } from "./factory";
 
 describe("company platoon math", () => {
   it("maps 240 riflemen to 8 platoons of 30", () => {
@@ -19,7 +19,7 @@ describe("company platoon math", () => {
   });
 
   it("plans line platoons and assault reserve for a battalion", () => {
-    const div = createPlayableDivision();
+    const div = createLegacySingleDivision();
     const bn = div.brigades[0].battalions[0];
     const plan = planBattalionDeploymentFixed(bn);
     const force = battalionMissionForce(bn);

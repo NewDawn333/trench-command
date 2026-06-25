@@ -89,8 +89,9 @@ export function startCampaign(): CampaignState {
 export function getCampaignSummary(state: CampaignState): string {
   const div = playableDivision(state);
   if (!div) return `Turn ${state.turn} · ${state.objectiveLabel}`;
+  const playable = state.army.divisions.filter((d) => d.playable).length;
   const bns = div.brigades.flatMap((b) => b.battalions).filter((bn) => bn.role === "front").length;
-  return `Turn ${state.turn} · ${div.label} · ${div.brigades.length} brigades · ${bns} battalion fronts · ${state.recruitPool} recruits`;
+  return `Turn ${state.turn} · ${div.label} · ${playable} divisions under command · ${div.brigades.length} brigades · ${bns} battalion fronts · ${state.recruitPool} recruits`;
 }
 
 export function ensureCampaignSaveSlot(): CampaignState | null {

@@ -124,7 +124,11 @@ export function findBrigade(division: Division, brigadeId: string): Brigade | nu
   return division.brigades.find((b) => b.id === brigadeId) ?? null;
 }
 
-export function playableDivision(state: { army: { divisions: Division[] } }): Division | null {
+export function playableDivision(state: { army: { divisions: Division[] }; activeDivisionId?: string | null }): Division | null {
+  if (state.activeDivisionId) {
+    const selected = state.army.divisions.find((d) => d.id === state.activeDivisionId);
+    if (selected?.playable) return selected;
+  }
   return state.army.divisions.find((d) => d.playable) ?? null;
 }
 

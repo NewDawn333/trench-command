@@ -1,13 +1,16 @@
 import { createBattalionCompanies } from "./company";
 import {
+  ARMY_DIVISION_COUNT,
   BATTALIONS_PER_BRIGADE,
   BRIGADE_FRONT_BATTALIONS,
   BRIGADES_PER_DIVISION,
+  PLAYABLE_DIVISION_SLOTS,
 } from "./oob";
 import { CAMPAIGN_OBJECTIVE_LABEL, RECRUIT_TRICKLE_PER_TURN } from "./constants";
-import type { Battalion, Brigade, CampaignState, Division } from "./types";
+import type { Battalion, Brigade, CampaignState, Division, DivisionLineStatus } from "./types";
 
-import { battalionLabel, brigadeLabel } from "./names";
+import { battalionLabel, brigadeLabel, divisionLabel } from "./names";
+
 const TEMPLATE_ROTATION = [
   "straight",
   "bulge_forward",
@@ -58,24 +61,78 @@ function buildBrigade(divisionId: string, brigadeIndex: number): Brigade {
   };
 }
 
-export function createPlayableDivision(): Division {
-  const id = "div-1";
+function aiLineStatus(mapSlot: number): DivisionLineStatus {
+  if (mapSlot <= 1) return "friendly_ai";
+  if (mapSlot >= 8) return "contested";
+  return "friendly_ai";
+}
+
+export function createPlayableDivision(divisionNumber: number, mapSlot: number): Division {
+  const id = `div-${divisionNumber}`;
   return {
     id,
-    label: "1st Division",
+    label: divisionLabel(divisionNumber),
     playable: true,
+    mapSlot,
     brigades: Array.from({ length: BRIGADES_PER_DIVISION }, (_, i) => buildBrigade(id, i)),
   };
 }
 
+function createAiDivision(divisionNumber: number, mapSlot: number): Division {
+  return {
+    id: `div-${divisionNumber}`,
+    label: divisionLabel(divisionNumber),
+    playable: false,
+    mapSlot,
+    lineStatus: aiLineStatus(mapSlot),
+    brigades: [],
+  };
+}
+
+export function createArmyDivisions(preservePlayable?: Division): Division[] {
+  const divisions: Division[] = [];
+  let playableIndex = 0;
+
+  for (let slot = 0; slot < ARMY_DIVISION_COUNT; slot++) {
+    const divisionNumber = slot + 1;
+    const isPlayable = (PLAYABLE_DIVISION_SLOTS as readonly number[]).includes(slot);
+
+    if (isPlayable) {
+      if (preservePlayable && playableIndex === 0) {
+        divisions.push({
+          ...preservePlayable,
+          mapSlot: slot,
+          playable: true,
+        });
+      } else {
+        divisions.push(createPlayableDivision(divisionNumber, slot));
+      }
+      playableIndex += 1;
+    } else {
+      divisions.push(createAiDivision(divisionNumber, slot));
+    }
+  }
+
+  return divisions;
+}
+
+/** @deprecated use createPlayableDivision(1, 2) */
+export function createLegacySingleDivision(): Division {
+  return createPlayableDivision(1, PLAYABLE_DIVISION_SLOTS[0]);
+}
+
 export function createNewCampaign(): CampaignState {
+  const divisions = createArmyDivisions();
+  const primary = divisions.find((d) => d.playable) ?? divisions[0];
   const now = Date.now();
+
   return {
     version: 3,
     createdAt: now,
     updatedAt: now,
     turn: 0,
-    phase: "division",
+    phase: "army",
+    activeDivisionId: primary.id,
     activeBrigadeId: null,
     objectiveLabel: CAMPAIGN_OBJECTIVE_LABEL,
     recruitPool: 40,
@@ -84,7 +141,7 @@ export function createNewCampaign(): CampaignState {
       id: "bef-4",
       label: "BEF — Fourth Army",
       objectiveProgress: 0,
-      divisions: [createPlayableDivision()],
+      divisions,
     },
     events: [],
     reinforcementRequests: [],

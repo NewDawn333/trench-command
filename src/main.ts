@@ -244,6 +244,10 @@ function goToDivision(): void {
   if (campaignState) {
     campaignState.phase = "division";
     campaignState.activeBrigadeId = null;
+    if (!campaignState.activeDivisionId) {
+      campaignState.activeDivisionId =
+        campaignState.army.divisions.find((d) => d.playable)?.id ?? null;
+    }
     saveCampaignState(campaignState);
   }
   playMode = null;
@@ -297,9 +301,23 @@ function goToMenu(): void {
 
 function enterCampaign(state: CampaignState): void {
   campaignState = state;
-  state.phase = "division";
-  saveCampaignState(state);
-  goToDivision();
+  if (!campaignState.activeDivisionId) {
+    campaignState.activeDivisionId =
+      campaignState.army.divisions.find((d) => d.playable)?.id ?? null;
+  }
+  saveCampaignState(campaignState);
+
+  switch (campaignState.phase) {
+    case "army":
+      goToArmy();
+      break;
+    case "brigade":
+      if (campaignState.activeBrigadeId) goToBrigade(campaignState.activeBrigadeId);
+      else goToDivision();
+      break;
+    default:
+      goToDivision();
+  }
 }
 
 bindUI(() => game, refreshHUD, input, {
@@ -325,7 +343,15 @@ setupDivisionScreen({
 
 setupArmyScreen({
   getState: () => campaignState ?? loadCampaignState()!,
-  onBackToDivision: goToDivision,
+  onSelectDivision: (divisionId) => {
+    if (!campaignState) return;
+    const div = campaignState.army.divisions.find((d) => d.id === divisionId);
+    if (!div?.playable) return;
+    campaignState.activeDivisionId = divisionId;
+    saveCampaignState(campaignState);
+    goToDivision();
+  },
+  onMainMenu: goToMenu,
   onApproveRequest: (requestId) => {
     if (!campaignState) return;
     if (approveReinforcementRequest(campaignState, requestId)) {

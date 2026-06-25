@@ -274,20 +274,20 @@ Work top-to-bottom: each phase is shippable and playtestable.
 
 ---
 
-### Phase 7 — Army map (v0.8.2) — **NEXT**
+### Phase 7 — Army map (v0.8.2) ✅
 
 **Goal:** Zoom out scale; still 1 campaign.
 
-- [ ] Army map: **10 division markers**, **3 selectable**, rest shown as AI-held line (static color)
-- [ ] Zoom division → existing division screen
-- [ ] Army recruit pool + objective tracker (River Line progress bar)
-- [ ] Transfer companies **within** division only (cross-division = v2)
+- [x] Army map: **10 division markers**, **3 selectable**, rest shown as AI-held line (static color)
+- [x] Zoom division → existing division screen
+- [x] Army recruit pool + objective tracker (River Line progress bar)
+- [x] Transfer companies **within** division only (cross-division = v2)
 
 **Exit:** Fantasy of corps-scale front; scope stays manageable.
 
 ---
 
-### Phase 8 — Campaign victory & polish (v0.9.0)
+### Phase 8 — Campaign victory & polish (v0.9.0) — **NEXT**
 
 **Goal:** One complete playable campaign arc.
 
@@ -339,9 +339,9 @@ v0.7.2  Phase 3   Retreat, redeploy, company transfer
 v0.7.3  Phase 4   Map templates & variety
 v0.8.0  Phase 5   Overextension events
 v0.8.0  Phase 5b  OOB v3 — brigade/battalion maps, 30-man platoons ✅
-v0.8.1  Phase 6   Recruits & rebuild          ← NEXT
-v0.8.2  Phase 7   Army map (10 div / 3 playable)
-v0.9.0  Phase 8   Win/fail + campaign polish
+v0.8.1  Phase 6   Recruits & rebuild          ✅
+v0.8.2  Phase 7   Army map (10 div / 3 playable) ✅
+v0.9.0  Phase 8   Win/fail + campaign polish  ← NEXT
 v1.0.0  Phase 9   Android APK
 ```
 

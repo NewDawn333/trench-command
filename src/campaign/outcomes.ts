@@ -1,3 +1,4 @@
+import { ensureArmyScale, playableDivisions } from "./army";
 import {
   findBattalion,
   findCompanyInDivision,
@@ -139,6 +140,7 @@ export function applyMissionOutcomeToCampaign(
 }
 
 export function normalizeCampaignState(state: CampaignState): CampaignState {
+  ensureArmyScale(state);
   const div = playableDivision(state);
   if (!div) return state;
   for (const bde of div.brigades) {
@@ -155,6 +157,7 @@ export function normalizeCampaignState(state: CampaignState): CampaignState {
   if (!state.events) state.events = [];
   if (!state.reinforcementRequests) state.reinforcementRequests = [];
   if (state.activeBrigadeId === undefined) state.activeBrigadeId = null;
+  if (state.activeDivisionId === undefined) state.activeDivisionId = playableDivisions(state)[0]?.id ?? null;
   for (const bde of div.brigades) {
     recomputeVulnerableFlags(state, bde.id);
   }

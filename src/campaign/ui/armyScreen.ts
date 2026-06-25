@@ -6,10 +6,12 @@ import {
   VICTORY_RECRUIT_BONUS,
 } from "../recruits";
 import { recentCampaignEvents } from "../overextension";
+import { renderArmyMap, renderArmyObjectiveBar } from "./armyMapView";
 
 export interface ArmyScreenHandlers {
   getState: () => CampaignState;
-  onBackToDivision: () => void;
+  onSelectDivision: (divisionId: string) => void;
+  onMainMenu: () => void;
   onApproveRequest: (requestId: string) => void;
 }
 
@@ -71,13 +73,17 @@ export function renderArmyScreen(state: CampaignState): void {
   const title = document.getElementById("army-title");
   const summary = document.getElementById("army-summary");
   const pool = document.getElementById("army-recruit-pool");
+  const objective = document.getElementById("army-objective");
+  const map = document.getElementById("army-map");
   const requests = document.getElementById("army-requests");
   const events = document.getElementById("army-events");
-  if (!title || !summary || !pool || !requests) return;
+  if (!title || !summary || !pool || !requests || !map || !objective) return;
 
   title.textContent = state.army.label;
-  summary.textContent = `${getCampaignSummary(state)} · Objective progress ${state.army.objectiveProgress}%`;
+  summary.textContent = getCampaignSummary(state);
   pool.textContent = `${recruitPoolLabel(state.recruitPool)} · +${state.recruitTricklePerTurn} per turn · +${VICTORY_RECRUIT_BONUS} on battalion victory`;
+  objective.innerHTML = renderArmyObjectiveBar(state.objectiveLabel, state.army.objectiveProgress);
+  map.innerHTML = renderArmyMap(state.army.divisions, state.objectiveLabel, state.activeDivisionId);
   requests.innerHTML = renderRequestList(state);
   if (events) {
     events.innerHTML = renderEventLog(state);
@@ -88,7 +94,13 @@ export function setupArmyScreen(handlers: ArmyScreenHandlers): void {
   if (bound) return;
   bound = true;
 
-  document.getElementById("btn-army-division")?.addEventListener("click", handlers.onBackToDivision);
+  document.getElementById("btn-army-menu")?.addEventListener("click", handlers.onMainMenu);
+
+  document.getElementById("army-map")?.addEventListener("click", (e) => {
+    const target = (e.target as HTMLElement).closest("[data-division-id]") as HTMLElement | null;
+    if (!target?.dataset.divisionId) return;
+    handlers.onSelectDivision(target.dataset.divisionId);
+  });
 
   document.getElementById("army-requests")?.addEventListener("click", (e) => {
     const btn = (e.target as HTMLElement).closest("[data-approve-request]") as HTMLElement | null;
