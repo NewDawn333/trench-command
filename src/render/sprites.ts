@@ -67,15 +67,20 @@ export function drawPlatoonSprite(
     ctx.stroke();
   }
 
+  ctx.restore();
+
+  // Draw labels in world space so enemy flip (scale -1) never mirrors numerals.
+  ctx.save();
+  ctx.globalAlpha = alpha;
   ctx.fillStyle = "#fff";
   ctx.font = "bold 9px system-ui";
   ctx.textAlign = "center";
-  ctx.fillText(String(Math.ceil(p.strength)), 0, -14);
+  ctx.fillText(String(Math.ceil(p.strength)), p.x, p.y - 14);
 
   if (showEffectivenessBadge && isPlayer && Math.abs(p.effectiveness - 100) > 2) {
     ctx.fillStyle = p.effectiveness >= 100 ? "#9f9" : p.effectiveness < 50 ? "#f99" : "#dd9";
     ctx.font = "8px system-ui";
-    ctx.fillText(`${Math.round(p.effectiveness)}%`, 0, -24);
+    ctx.fillText(`${Math.round(p.effectiveness)}%`, p.x, p.y - 24);
   }
 
   ctx.textAlign = "left";

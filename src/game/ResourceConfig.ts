@@ -13,7 +13,7 @@ export const MAX_MG_PER_SECTOR = 3;
 export const MG_MOVE_COOLDOWN_SEC = 15;
 
 /** Defender edge when invaders are still moving along the trench (not in bay). */
-export const DEFENDER_APPROACH_ADVANTAGE = 1.12;
+export const DEFENDER_APPROACH_ADVANTAGE = 1.06;
 
 /** Phase 4 — combat feel */
 export const TRENCH_MELEE_DPS = 9;
@@ -24,6 +24,9 @@ export const ARTY_SHELL_REGEN_SEC = 8;
 
 /** Minimum front-line strength to launch a player assault (one platoon). */
 export const PLAYER_ASSAULT_MIN_STRENGTH = CONFIG.platoonSize;
+
+/** Enemy needs ~two platoons on the line before a NML push (matches AI mass threshold). */
+export const ENEMY_ASSAULT_MIN_STRENGTH = Math.round(CONFIG.platoonSize * 1.75);
 
 /** Phase 2 — effectiveness tuning */
 export const EFFECTIVENESS_SURGE_DECAY_SEC = 120;

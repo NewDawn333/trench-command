@@ -152,6 +152,22 @@ function invaderWithinMeleeRange(invader: Platoon, defenders: Platoon[]): boolea
   return defenders.some((d) => inLateralTrenchRange(invader.x, d.x));
 }
 
+/** Which trench sector this invader is actually fighting for (not merely assigned to). */
+function invaderContestsSector(p: Platoon, sector: number): boolean {
+  const bay = effectiveSector(p);
+  const targetSec = sectorFromX(p.targetX);
+
+  if (bay === sector) {
+    return targetSec === sector;
+  }
+
+  if (Math.abs(bay - sector) === 1 && targetSec === sector) {
+    return true;
+  }
+
+  return false;
+}
+
 /** Active bayonet fight in a sector — invaders in bay or closing along the trench within rifle-melee reach. */
 function trenchMeleeContact(
   platoons: Platoon[],
@@ -167,11 +183,8 @@ function trenchMeleeContact(
 
   const invaders = platoons.filter((p) => {
     if (p.side !== invaderSide || !isInvader(p) || !isCombatReady(p)) return false;
-    if (!invaderWithinMeleeRange(p, defenders)) return false;
-    const bay = effectiveSector(p);
-    if (bay === sector) return true;
-    if (Math.abs(bay - sector) !== 1) return false;
-    return sectorFromX(p.targetX) === sector || (p.sector === sector && bay !== sector);
+    if (!invaderContestsSector(p, sector)) return false;
+    return invaderWithinMeleeRange(p, defenders);
   });
 
   if (invaders.length === 0) return null;
@@ -232,9 +245,10 @@ export function tickTrenchFire(
 }
 
 export function tickTrenchMelee(platoons: Platoon[], dt: number, events: CombatEvents, stats: MissionStats): void {
+  const engagedInvaders = new Set<string>();
   for (let s = 0; s < 8; s++) {
-    resolveTrenchControlFight(platoons, dt, events, stats, s, "player");
-    resolveTrenchControlFight(platoons, dt, events, stats, s, "enemy");
+    resolveTrenchControlFight(platoons, dt, events, stats, s, "player", engagedInvaders);
+    resolveTrenchControlFight(platoons, dt, events, stats, s, "enemy", engagedInvaders);
   }
 }
 
@@ -242,7 +256,7 @@ const DEFENDER_APPROACH_MULT = DEFENDER_APPROACH_ADVANTAGE;
 
 /**
  * Trench control at one sector — mutual attrition, one exchange per sector (no per-platoon stacking).
- * Same bay: even fight. Lateral approach (moving in, not yet arrived): defenders get up to 1.1× strength weight.
+ * Same bay: even fight. Lateral approach (moving in, not yet arrived): defenders get a small edge.
  */
 function resolveTrenchControlFight(
   platoons: Platoon[],
@@ -251,20 +265,25 @@ function resolveTrenchControlFight(
   stats: MissionStats,
   sector: number,
   invaderSide: Side,
+  engagedInvaders: Set<string>,
 ): void {
   const contact = trenchMeleeContact(platoons, sector, invaderSide);
   if (!contact) return;
 
   const { defenders, invaders, invadersInBay } = contact;
-  const defenderMult = invadersInBay.length > 0 ? 1.0 : DEFENDER_APPROACH_MULT;
+  const activeInvaders = invaders.filter((p) => !engagedInvaders.has(p.id));
+  if (activeInvaders.length === 0) return;
 
-  const iStr = invaders.reduce((a, p) => a + p.strength, 0);
+  const defenderMult = invadersInBay.some((p) => activeInvaders.includes(p)) ? 1.0 : DEFENDER_APPROACH_MULT;
+
+  const iStr = activeInvaders.reduce((a, p) => a + p.strength, 0);
   const dStr = defenders.reduce((a, p) => a + p.strength, 0) * defenderMult;
   const total = Math.max(iStr + dStr, 1);
   const baseDmg = TRENCH_MELEE_DPS * dt;
 
-  for (const p of invaders) {
-    const dmg = ((baseDmg * (dStr / total)) / invaders.length) * platoonCombatMult(p);
+  for (const p of activeInvaders) {
+    engagedInvaders.add(p.id);
+    const dmg = ((baseDmg * (dStr / total)) / activeInvaders.length) * platoonCombatMult(p);
     applyDamage(p, dmg, 0.25, stats);
     if (Math.random() < dt * 3 * platoonCombatMult(p)) addCasualty(events, p.x, p.y, "rifle", p.side);
   }
@@ -273,8 +292,8 @@ function resolveTrenchControlFight(
     applyDamage(p, dmg, 0.25, stats);
     if (Math.random() < dt * 3 * platoonCombatMult(p)) addCasualty(events, p.x, p.y, "rifle", p.side);
   }
-  if (Math.random() < dt * 4 && invaders[0] && defenders[0]) {
-    addTracer(events, invaders[0].x, invaders[0].y, defenders[0].x, defenders[0].y, invaderSide);
+  if (Math.random() < dt * 4 && activeInvaders[0] && defenders[0]) {
+    addTracer(events, activeInvaders[0].x, activeInvaders[0].y, defenders[0].x, defenders[0].y, invaderSide);
   }
 }
 

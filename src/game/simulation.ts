@@ -1,7 +1,7 @@
 import type { AssaultOrder, FixedEmplacement, Platoon, Sector, Side } from "../types";
 import { CONFIG, DEV_MODE, LAYOUT, PLATOON_MOVE_SPEED } from "../types";
 import type { AIProfile } from "../app/Difficulty";
-import { PLAYER_ASSAULT_MIN_STRENGTH } from "./ResourceConfig";
+import { ENEMY_ASSAULT_MIN_STRENGTH, PLAYER_ASSAULT_MIN_STRENGTH } from "./ResourceConfig";
 import { platoonFrontY } from "./battlefield";
 import {
   beginCrossing,
@@ -52,15 +52,121 @@ export function moveStagingToFront(platoons: Platoon[], sector: number, side: Si
 
 export function assaultMinStrength(side: Side): number {
   if (DEV_MODE) return 1;
-  return side === "player" ? PLAYER_ASSAULT_MIN_STRENGTH : CONFIG.platoonSize * 2.5;
+  return side === "player" ? PLAYER_ASSAULT_MIN_STRENGTH : ENEMY_ASSAULT_MIN_STRENGTH;
 }
 
-export function canLaunchAssault(platoons: Platoon[], side: Side, sector: number): boolean {
+function playerDefenseStrength(platoons: Platoon[], sector: number): number {
+  return totalStrength(platoonsInSector(platoons, "player", sector, ["front", "staging"]));
+}
+
+function enemyInvaderStrength(platoons: Platoon[], sector: number): number {
+  return totalStrength(platoonsInSector(platoons, "enemy", sector, ["enemy_trench"]).filter(isInvader));
+}
+
+function enemyAssaultThreshold(
+  sector: number,
+  emplacements: FixedEmplacement[],
+  profile: AIProfile,
+): number {
+  let threshold = DEV_MODE ? CONFIG.platoonSize : ENEMY_ASSAULT_MIN_STRENGTH;
+  threshold *= profile.assaultThresholdMult;
+  if (sectorHasEnemyPillbox(emplacements, sector)) threshold *= profile.pillboxAssaultPenalty;
+  return threshold;
+}
+
+/** Pull staging to front and launch or reinforce an enemy push on a sector. */
+export function tryEnemySectorAssault(
+  platoons: Platoon[],
+  assaults: AssaultOrder[],
+  sector: number,
+  emplacements: FixedEmplacement[],
+  profile: AIProfile,
+  urgency: "mass" | "counter" | "beachhead" | "opportunistic",
+): boolean {
+  moveStagingToFront(platoons, sector, "enemy");
+
+  const invaderStr = enemyInvaderStrength(platoons, sector);
+  const front = platoonsInSector(platoons, "enemy", sector, ["front"]).filter(
+    (p) => p.strength > p.maxStrength * 0.35,
+  );
+  const frontStr = totalStrength(front);
+  const playerDef = playerDefenseStrength(platoons, sector);
+  const weakDefense = playerDef <= CONFIG.platoonSize * 0.35;
+  const obviousWin = weakDefense && (frontStr >= CONFIG.platoonSize || invaderStr >= CONFIG.platoonSize);
+  const canLaunch =
+    canLaunchAssault(platoons, "enemy", sector) ||
+    (urgency === "opportunistic" && obviousWin && front.length > 0);
+
+  const activeAssault = assaults.some((a) => a.side === "enemy" && a.sector === sector && a.active);
+  if (activeAssault && invaderStr > 0) {
+    if (reinforceAssault(platoons, "enemy", sector, assaults) > 0) return true;
+  }
+
+  if (!canLaunch) return false;
+
+  const threshold = enemyAssaultThreshold(sector, emplacements, profile);
+  const massed = frontStr >= threshold;
+  const beachheadPush =
+    invaderStr > 0 && playerDef < invaderStr * 1.35 && frontStr >= CONFIG.platoonSize * 0.45;
+
+  const shouldLaunch =
+    urgency === "counter" ||
+    urgency === "opportunistic" ||
+    obviousWin ||
+    (urgency === "beachhead" && beachheadPush) ||
+    (urgency === "mass" && (massed || obviousWin));
+
+  if (!shouldLaunch) return false;
+
+  const minStrength =
+    urgency === "opportunistic" && obviousWin ? CONFIG.platoonSize : assaultMinStrength("enemy");
+  return launchAssault(platoons, "enemy", sector, assaults, minStrength) !== null;
+}
+
+function sectorsWithEnemyBeachheads(platoons: Platoon[]): number[] {
+  const out = new Set<number>();
+  for (const p of platoons) {
+    if (p.side === "enemy" && isInvader(p) && p.strength > 0) out.add(p.sector);
+  }
+  return [...out];
+}
+
+function pickReserveDestination(
+  platoons: Platoon[],
+  sectors: Sector[],
+  massSector: number | null,
+): number {
+  const beachheads = sectorsWithEnemyBeachheads(platoons);
+  if (beachheads.length > 0) {
+    let best = beachheads[0];
+    let bestWeak = Infinity;
+    for (const s of beachheads) {
+      const weak = playerDefenseStrength(platoons, s);
+      if (weak < bestWeak) {
+        bestWeak = weak;
+        best = s;
+      }
+    }
+    return best;
+  }
+  if (massSector !== null) return massSector;
+  for (const s of sectors) {
+    if (s.controller === "player" || s.controller === "contested") return s.index;
+  }
+  return Math.floor(Math.random() * CONFIG.sectorCount);
+}
+
+export function canLaunchAssault(
+  platoons: Platoon[],
+  side: Side,
+  sector: number,
+  minStrength = assaultMinStrength(side),
+): boolean {
   const front = platoonsInSector(platoons, side, sector, ["front"]).filter((p) => p.strength > p.maxStrength * 0.35);
   const inEnemyTrench = platoonsInSector(platoons, side, sector, ["enemy_trench"]).filter(isInvader);
   if (front.length === 0 && inEnemyTrench.length === 0) return false;
   if (front.length === 0) return inEnemyTrench.length > 0;
-  return totalStrength(front) >= assaultMinStrength(side);
+  return totalStrength(front) >= minStrength;
 }
 
 export function launchAssault(
@@ -68,11 +174,12 @@ export function launchAssault(
   side: Side,
   sector: number,
   assaults: AssaultOrder[],
+  minStrength = assaultMinStrength(side),
 ): AssaultOrder | null {
   const front = platoonsInSector(platoons, side, sector, ["front"]).filter((p) => p.strength > p.maxStrength * 0.35);
   const inEnemyTrench = platoonsInSector(platoons, side, sector, ["enemy_trench"]).filter(isInvader);
 
-  if (!canLaunchAssault(platoons, side, sector)) return null;
+  if (!canLaunchAssault(platoons, side, sector, minStrength)) return null;
 
   const id = `assault-${assaultCounter++}`;
   const order: AssaultOrder = { id, side, sector, active: true, kind: "assault" };
@@ -164,15 +271,22 @@ export function tickAI(
   const sector = ai.massingSector;
   if (sector !== null) {
     const reserves = platoons.filter((p) => p.side === "enemy" && p.state === "reserve" && p.strength > 0);
-    if (reserves.length > 0 && Math.random() < dt * profile.reserveCallRate) {
+    const reserveRate = profile.reserveCallRate * (ai.assaultCooldown > 10 ? 1.35 : 1);
+    if (reserves.length > 0 && Math.random() < dt * reserveRate) {
       const p = reserves[0];
-      p.sector = sector;
+      p.sector = pickReserveDestination(platoons, sectors, sector);
       movePlatoonToStaging(p);
     }
 
     // Build front-line mass during staging — assault threshold counts front troops only.
     if (Math.random() < dt * profile.aggression * 0.55) {
       moveStagingToFront(platoons, sector, "enemy");
+    }
+  }
+
+  for (const beachSector of sectorsWithEnemyBeachheads(platoons)) {
+    if (Math.random() < dt * profile.aggression * 0.35) {
+      moveStagingToFront(platoons, beachSector, "enemy");
     }
   }
 
@@ -199,14 +313,7 @@ export function tickAI(
   }
 
   if (ai.assaultCooldown <= 0 && sector !== null) {
-    moveStagingToFront(platoons, sector, "enemy");
-    const frontStr = totalStrength(platoonsInSector(platoons, "enemy", sector, ["front"]));
-    let threshold = DEV_MODE ? CONFIG.platoonSize : CONFIG.platoonSize * 1.75;
-    threshold *= profile.assaultThresholdMult;
-    if (sectorHasEnemyPillbox(emplacements, sector)) threshold *= profile.pillboxAssaultPenalty;
-
-    if (frontStr >= threshold) {
-      launchAssault(platoons, "enemy", sector, assaults);
+    if (tryEnemySectorAssault(platoons, assaults, sector, emplacements, profile, "mass")) {
       ai.assaultCooldown =
         profile.assaultCooldownMin +
         Math.random() * (profile.assaultCooldownMax - profile.assaultCooldownMin);
@@ -214,22 +321,82 @@ export function tickAI(
     }
   }
 
-  for (const s of sectors) {
-    if (s.controller === "player") {
-      const enemies = platoonsInSector(platoons, "enemy", s.index, ["staging", "front", "reserve"]);
-      if (enemies.length > 0 && ai.assaultCooldown <= 5 && Math.random() < dt * profile.counterAttackRate) {
-        moveStagingToFront(platoons, s.index, "enemy");
-        launchAssault(platoons, "enemy", s.index, assaults);
-        ai.assaultCooldown = profile.assaultCooldownMin * 0.85;
+  if (ai.assaultCooldown <= 0) {
+    for (const beachSector of sectorsWithEnemyBeachheads(platoons)) {
+      if (
+        tryEnemySectorAssault(platoons, assaults, beachSector, emplacements, profile, "beachhead")
+      ) {
+        ai.assaultCooldown = profile.assaultCooldownMin * 0.55;
+        break;
       }
     }
   }
 
+  if (ai.assaultCooldown <= 8) {
+    for (let s = 0; s < CONFIG.sectorCount; s++) {
+      const playerDef = playerDefenseStrength(platoons, s);
+      const enemyFront = totalStrength(platoonsInSector(platoons, "enemy", s, ["front"]));
+      if (playerDef > CONFIG.platoonSize * 0.5 || enemyFront < CONFIG.platoonSize) continue;
+      if (Math.random() >= dt * profile.counterAttackRate * 1.6) continue;
+      if (tryEnemySectorAssault(platoons, assaults, s, emplacements, profile, "opportunistic")) {
+        ai.assaultCooldown = profile.assaultCooldownMin * 0.65;
+        break;
+      }
+    }
+  }
+
+  for (const s of sectors) {
+    const playerHeld = s.controller === "player" || s.controller === "contested";
+    const weakFront = playerDefenseStrength(platoons, s.index) <= CONFIG.platoonSize * 0.5;
+    if (!playerHeld && !weakFront) continue;
+
+    const enemies = platoonsInSector(platoons, "enemy", s.index, ["staging", "front", "reserve"]);
+    if (enemies.length === 0 || ai.assaultCooldown > 5) continue;
+    if (Math.random() >= dt * profile.counterAttackRate) continue;
+
+    if (tryEnemySectorAssault(platoons, assaults, s.index, emplacements, profile, "counter")) {
+      ai.assaultCooldown = profile.assaultCooldownMin * 0.85;
+    }
+  }
+
+  tickAILateralAssault(platoons, assaults, ai, dt);
   tickAIInvaderSpread(platoons, ai, dt);
 }
 
 function platoonAtTarget(p: Platoon, threshold = 3): boolean {
   return Math.hypot(p.targetX - p.x, p.targetY - p.y) <= threshold;
+}
+
+/** Push from an established beachhead into a weak adjacent player sector. */
+function tickAILateralAssault(
+  platoons: Platoon[],
+  assaults: AssaultOrder[],
+  ai: AIState,
+  dt: number,
+): void {
+  if (ai.assaultCooldown > 12) return;
+
+  for (let fromSector = 0; fromSector < CONFIG.sectorCount; fromSector++) {
+    const invaders = platoonsInSector(platoons, "enemy", fromSector, ["enemy_trench"]).filter(
+      (p) => isInvader(p) && p.strength > 0 && platoonAtTarget(p),
+    );
+    if (invaders.length < 2) continue;
+
+    for (const toSector of [fromSector - 1, fromSector + 1]) {
+      if (toSector < 0 || toSector >= CONFIG.sectorCount) continue;
+
+      const playerDef = playerDefenseStrength(platoons, toSector);
+      const enemyThere = platoonsInSector(platoons, "enemy", toSector, ["enemy_trench"]).filter(isInvader)
+        .length;
+      if (playerDef > CONFIG.platoonSize * 0.85 || enemyThere >= 2) continue;
+      if (Math.random() >= dt * ai.profile.aggression * 0.45) continue;
+
+      if (launchLateralTrenchAssault(platoons, "enemy", fromSector, toSector, assaults)) {
+        ai.assaultCooldown = Math.min(ai.assaultCooldown, ai.profile.assaultCooldownMin * 0.7);
+        return;
+      }
+    }
+  }
 }
 
 /** Enemy invaders in player trench spread laterally to overrun adjacent sectors. */

@@ -1,7 +1,7 @@
 import type { FixedEmplacement, Platoon, Sector } from "../types";
 import { CONFIG } from "../types";
 import { artyZoneForSector } from "./combat";
-import { platoonsInSector, totalStrength } from "./platoons";
+import { isInvader, platoonsInSector, totalStrength } from "./platoons";
 
 /** Pick the sector where player staging / weak fronts offer the best arty target. */
 export function pickEnemyArtyZone(
@@ -44,7 +44,13 @@ export function pickMassSector(
   let bestScore = 0;
   for (let s = 0; s < CONFIG.sectorCount; s++) {
     const weak = platoonsInSector(platoons, "player", s, ["front"]).reduce((a, p) => a + p.strength, 0);
-    let score = (120 - weak) + (sectors[s].controller === "player" ? 40 : 0) + Math.random() * 20;
+    const beachhead = platoonsInSector(platoons, "enemy", s, ["enemy_trench"]).filter(isInvader).length;
+    let score =
+      (120 - weak) +
+      (sectors[s].controller === "player" ? 40 : 0) +
+      (sectors[s].controller === "contested" ? 28 : 0) +
+      beachhead * 35 +
+      Math.random() * 20;
     if (sectorHasEnemyPillbox(emplacements, s)) score /= pillboxPenalty;
     if (score > bestScore) {
       bestScore = score;
